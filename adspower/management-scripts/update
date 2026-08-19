@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+MANAGER="${HOME}/.local/bin/custom-appimage-manager"
+if [ -x "$MANAGER" ]; then
+  exec "$MANAGER" app adspower install
+fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/install"

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_NAME=adspower
+APPIMAGE="$(find "$APP_DIR" -maxdepth 1 -type f -name 'adspower-*.AppImage' -print -quit || true)"
+[ -n "$APPIMAGE" ] || { echo "AdsPower is not installed. Nothing to uninstall."; exit 0; }
+rm -f "$APPIMAGE" "$APP_DIR/.release-tag"
+find "$HOME/.local/share/applications" -maxdepth 1 -type f -name 'adspower-appimage-*.desktop' -delete 2>/dev/null || true
+INSTANCE_DIR="${HOME}/.local/share/${APP_NAME}-appimage"
+if [ -d "$INSTANCE_DIR" ]; then
+  printf 'Delete instance data at %s? [y/N] ' "$INSTANCE_DIR" >&2
+  read -r answer || answer=n
+  case "$answer" in y|Y|yes|YES) rm -rf "$INSTANCE_DIR"; echo "Deleted $INSTANCE_DIR" ;; *) echo "Kept $INSTANCE_DIR" ;; esac
+fi
+echo "Uninstalled local AdsPower AppImage files from $APP_DIR"

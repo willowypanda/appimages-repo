@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_OWNER="willowypanda"
+REPO_NAME="appimages-repo"
+BRANCH="main"
+REPO_RAW="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}"
+REPO_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents"
+INSTALL_PATH="${HOME}/.local/bin/custom-appimage-manager"
+BASE_DIR="${HOME}/CustomAppimages"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  custom-appimage-manager install
+  custom-appimage-manager self-update
+  custom-appimage-manager app APP install
+  custom-appimage-manager app APP
+  custom-appimage-manager app APP SCRIPT [ARGS...]
+  custom-appimage-manager run [INSTANCE] [ARGS...]
+  custom-appimage-manager shortcut APP [list|create|delete|sync] [INSTANCE]
+
+When exactly one app is installed, `run INSTANCE` can be used by desktop shortcuts.
+EOF
+}
+
+need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Error: required command not found: $1" >&2; exit 1; }; }
+valid_app() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]]; }
+app_dir() { printf '%s/%s\n' "$BASE_DIR" "$1"; }
+
+fetch_management_scripts() {
+  local app="$1" dest="$2" json name url
+  need_cmd curl; need_cmd python3
+  valid_app "$app" || { echo "Error: invalid app name: $app" >&2; exit 2; }
+  mkdir -p "$dest"
+  json="$(curl --fail --location --silent --show-error "${REPO_API}/${app}/management-scripts?ref=${BRANCH}")"
+  while IFS=$'\t' read -r name url; do
+    [ -n "$name" ] || continue
+    case "$name" in
+      *.sh|run|check|update|install|uninstall|shortcut)
+        curl --fail --location --silent --show-error "$url" -o "$dest/$name"
+        chmod +x "$dest/$name"
+        ;;
+    esac
+  done < <(python3 -c 'import json,sys; [print(f"{x[\"name\"]}\t{x[\"download_url\"]}") for x in json.load(sys.stdin) if x.get("type")=="file"]' <<<"$json")
+  for required in run-sandboxed.sh run check update install uninstall shortcut; do
+    [ -f "$dest/$required" ] || { echo "Error: app $app is missing management-scripts/$required" >&2; exit 1; }
+  done
+}
+
+install_self() {
+  mkdir -p "$(dirname "$INSTALL_PATH")"
+  if [ "$SCRIPT_DIR/custom-appimage-manager" = "$INSTALL_PATH" ]; then
+    chmod +x "$INSTALL_PATH"
+    echo "custom-appimage-manager is already installed at $INSTALL_PATH"
+    return
+  fi
+  curl --fail --location --silent --show-error "${REPO_RAW}/custom-appimage-manager" -o "$INSTALL_PATH"
+  chmod +x "$INSTALL_PATH"
+  echo "Installed $INSTALL_PATH"
+}
+
+self_update() {
+  local tmp
+  tmp="$(mktemp)"
+  trap 'rm -f "$tmp"' RETURN
+  curl --fail --location --silent --show-error "${REPO_RAW}/custom-appimage-manager" -o "$tmp"
+  chmod +x "$tmp"
+  mkdir -p "$(dirname "$INSTALL_PATH")"
+  mv "$tmp" "$INSTALL_PATH"
+  echo "Updated $INSTALL_PATH from ${REPO_OWNER}/${REPO_NAME}@${BRANCH}"
+}
+
+installed_apps() {
+  [ -d "$BASE_DIR" ] || return 0
+  find "$BASE_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+}
+
+resolve_one_app() {
+  local apps count
+  mapfile -t apps < <(installed_apps)
+  count="${#apps[@]}"
+  [ "$count" -eq 1 ] || { echo "Error: specify an app; installed apps: ${apps[*]:-none}" >&2; exit 2; }
+  printf '%s\n' "${apps[0]}"
+}
+
+run_app_script() {
+  local app="$1" script="$2"; shift 2
+  local dir="$(app_dir "$app")" path="$dir/management-scripts/$script"
+  [ -d "$dir" ] || { echo "App '$app' is not installed. Use: custom-appimage-manager app $app install" >&2; exit 1; }
+  [ -x "$path" ] || { echo "Script '$script' is not available for app '$app'" >&2; exit 1; }
+  exec "$path" "$@"
+}
+
+cmd_install_app() {
+  local app="$1" dir; dir="$(app_dir "$app")"
+  mkdir -p "$dir"
+  fetch_management_scripts "$app" "$dir/management-scripts"
+  run_app_script "$app" install
+}
+
+case "${1:-}" in
+  install)
+    [ "$#" -eq 1 ] || { echo "Usage: $0 install" >&2; exit 2; }
+    install_self
+    ;;
+  self-update)
+    [ "$#" -eq 1 ] || { echo "Usage: $0 self-update" >&2; exit 2; }
+    self_update
+    ;;
+  app)
+    [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+    app="$2"
+    # Convenience: `app shortcut ...` operates on the only installed app.
+    if [ "$app" = shortcut ]; then
+      app="$(resolve_one_app)"
+      shift 2
+      run_app_script "$app" shortcut "$@"
+    fi
+    shift 2
+    if [ "$#" -eq 0 ]; then
+      run_app_script "$app" run default
+    elif [ "$1" = install ]; then
+      [ "$#" -eq 1 ] || { echo "Usage: $0 app $app install" >&2; exit 2; }
+      cmd_install_app "$app"
+    else
+      script="$1"; shift
+      run_app_script "$app" "$script" "$@"
+    fi
+    ;;
+  run)
+    shift
+    app="$(resolve_one_app)"
+    instance="${1:-default}"
+    [ "$#" -eq 0 ] || shift
+    run_app_script "$app" run "$instance" "$@"
+    ;;
+  shortcut)
+    [ "$#" -ge 2 ] || { echo "Usage: $0 shortcut APP [list|create|delete|sync] [INSTANCE]" >&2; exit 2; }
+    app="$2"; shift 2
+    run_app_script "$app" shortcut "$@"
+    ;;
+  ''|-h|--help)
+    usage
+    ;;
+  *)
+    echo "Error: unknown command: $1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
