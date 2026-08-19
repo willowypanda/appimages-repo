@@ -54,6 +54,8 @@ Instance data is stored under:
 ~/.local/share/adspower-appimage/instances/personal/
 ```
 
+The host `~/Downloads` directory is mounted read-write inside each instance as its `~/Downloads`. In bubblewrap mode, the host root filesystem is not mounted wholesale; only Electron runtime directories, required system files, graphics/audio sockets, `/dev/dri`, the instance HOME, and `~/Downloads` are exposed.
+
 The launcher prefers bubblewrap and falls back to Firejail. Select one explicitly with:
 
 ```bash

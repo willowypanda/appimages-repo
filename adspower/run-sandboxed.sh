@@ -6,6 +6,8 @@ usage() {
 Usage: run-sandboxed.sh --instance NAME [--appimage FILE] [--firejail|--bwrap] [-- APP_ARGS...]
 
 Each instance receives a separate HOME under ~/.local/share/adspower-appimage/instances/.
+The host ~/Downloads directory is mounted read-write as the instance's ~/Downloads.
+The bubblewrap mode uses an explicit read-only runtime allowlist and does not bind the host / root.
 EOF
 }
 INSTANCE=""
@@ -43,15 +45,59 @@ fi
 if [ "$ENGINE" = bwrap ]; then
   command -v bwrap >/dev/null 2>&1 || { echo "bubblewrap is not installed" >&2; exit 1; }
   XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-  cmd=(bwrap --die-with-parent --new-session --unshare-pid --unshare-uts --unshare-ipc
-    --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --tmpfs /opt
+  HOST_DOWNLOADS="${HOME}/Downloads"
+  mkdir -p "$HOST_DOWNLOADS"
+
+  # Do not expose the host root filesystem. Build an explicit read-only
+  # runtime view containing the directories needed by the AppImage/Electron.
+  cmd=(bwrap --die-with-parent --new-session
+    --unshare-pid --unshare-uts --unshare-ipc
+    --ro-bind /usr /usr
+    --ro-bind /bin /bin
+    --ro-bind /sbin /sbin
+    --ro-bind /lib /lib
+    --ro-bind /lib64 /lib64
+    --ro-bind /sys /sys
+    --proc /proc
+    --dev /dev
+    --tmpfs /tmp
+    --tmpfs /opt
+    --tmpfs /etc
+    --dir /home
+    --dir "$HOME"
     --ro-bind "$APPIMAGE" /opt/adspower.AppImage
     --bind "$INSTANCE_HOME" "$HOME"
-    --setenv HOME "$HOME" --setenv USER "${USER}" --setenv DISPLAY "${DISPLAY:-}"
-    --setenv WAYLAND_DISPLAY "${WAYLAND_DISPLAY:-}" --setenv XDG_RUNTIME_DIR "$XDG_RUNTIME_DIR"
+    --bind "$HOST_DOWNLOADS" "$HOME/Downloads"
+    --setenv HOME "$HOME"
+    --setenv USER "${USER}"
+    --setenv DISPLAY "${DISPLAY:-}"
+    --setenv WAYLAND_DISPLAY "${WAYLAND_DISPLAY:-}"
+    --setenv XDG_RUNTIME_DIR "$XDG_RUNTIME_DIR"
     --share-net)
-  [ -d /tmp/.X11-unix ] && cmd+=(--dir /tmp/.X11-unix --ro-bind /tmp/.X11-unix /tmp/.X11-unix)
-  [ -d "$XDG_RUNTIME_DIR" ] && cmd+=(--ro-bind "$XDG_RUNTIME_DIR" "$XDG_RUNTIME_DIR")
+
+  # Minimal files needed for DNS, user identity, TLS and locale handling.
+  for f in resolv.conf hosts nsswitch.conf passwd group localtime; do
+    [ -e "/etc/$f" ] && cmd+=(--ro-bind "/etc/$f" "/etc/$f")
+  done
+  for d in ssl/certs ca-certificates fonts fontconfig icons zoneinfo; do
+    [ -e "/etc/$d" ] && cmd+=(--ro-bind "/etc/$d" "/etc/$d")
+    [ -e "/usr/share/$d" ] && cmd+=(--ro-bind "/usr/share/$d" "/usr/share/$d")
+  done
+
+  # Only pass through the graphics/audio sockets that are actually in use.
+  if [ -d /tmp/.X11-unix ]; then
+    cmd+=(--dir /tmp/.X11-unix --ro-bind /tmp/.X11-unix /tmp/.X11-unix)
+  fi
+  RUNTIME_PARENT="$(dirname "$XDG_RUNTIME_DIR")"
+  cmd+=(--dir /run --dir /run/user --dir "$RUNTIME_PARENT" --dir "$XDG_RUNTIME_DIR")
+  for socket in "${WAYLAND_DISPLAY:-}" pipewire-0 pulse/native; do
+    [ -n "$socket" ] && [ -e "$XDG_RUNTIME_DIR/$socket" ] && \
+      cmd+=(--ro-bind "$XDG_RUNTIME_DIR/$socket" "$XDG_RUNTIME_DIR/$socket")
+  done
+  if [ -e /dev/dri ]; then
+    cmd+=(--dev-bind /dev/dri /dev/dri)
+  fi
+
   exec "${cmd[@]}" /opt/adspower.AppImage "${ARGS[@]}"
 fi
 
