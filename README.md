@@ -33,10 +33,10 @@ adspower-<version>-x86_64.AppImage
 
 ## Run with an isolated instance
 
-Install either bubblewrap or Firejail:
+Install bubblewrap:
 
 ```bash
-sudo apt install -y bubblewrap firejail
+sudo apt install -y bubblewrap
 ```
 
 Run separate AdsPower instances with separate data directories:
@@ -56,12 +56,13 @@ Instance data is stored under:
 
 The host `~/Downloads` directory is mounted read-write inside each instance as its `~/Downloads`. In bubblewrap mode, the host root filesystem is not mounted wholesale; only Electron runtime directories, required system files, graphics/audio sockets, `/dev/dri`, the instance HOME, and `~/Downloads` are exposed.
 
-The launcher prefers bubblewrap and falls back to Firejail. Select one explicitly with:
+The launcher uses bubblewrap with an explicit filesystem allowlist. Select it explicitly with:
 
 ```bash
 ./run-sandboxed.sh --bwrap --instance work --appimage ./adspower-8.7.23-x86_64.AppImage
-./run-sandboxed.sh --firejail --instance work --appimage ./adspower-8.7.23-x86_64.AppImage
 ```
+
+Bubblewrap is required; Firejail is not supported.
 
 This is process/filesystem isolation similar in purpose to Flatpak, but it is not the same security model. Electron's internal sandbox remains disabled for AdsPower compatibility, as in the tested Flatpak package.
 
