@@ -1,0 +1,71 @@
+name: Build AdsPower AppImage release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'adspower/**'
+      - '.github/workflows/build-adspower-appimage.yml'
+  schedule:
+    - cron: '30 */6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev curl python3 file
+
+      - name: Build AppImage
+        id: build
+        working-directory: adspower
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          chmod +x download-latest.sh build-appimage.sh
+          ./download-latest.sh
+          ./build-appimage.sh
+          VERSION="$(python3 -c "import json; print(json.load(open('deb_info.json'))['version'])")"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          RELEASE_FILE="adspower-${VERSION}-${SHORT_SHA}.AppImage"
+          BUILT="$(find . -maxdepth 1 -type f -name 'adspower-*.AppImage' -print -quit)"
+          [ -n "${BUILT}" ]
+          mv "${BUILT}" "${RELEASE_FILE}"
+          chmod +x "${RELEASE_FILE}"
+          file "${RELEASE_FILE}"
+          sha256sum "${RELEASE_FILE}" > "${RELEASE_FILE}.sha256"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_file=${RELEASE_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test AppImage metadata
+        working-directory: adspower
+        env:
+          APPIMAGE: ${{ steps.build.outputs.release_file }}
+        run: |
+          test -x "${APPIMAGE}"
+          "./${APPIMAGE}" --appimage-version || true
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.build.outputs.version }}
+          RELEASE_FILE: ${{ steps.build.outputs.release_file }}
+          SHORT_SHA: ${{ github.sha }}
+        working-directory: adspower
+        run: |
+          TAG="adspower-v${VERSION}-${SHORT_SHA:0:7}"
+          gh release create "${TAG}" \
+            "${RELEASE_FILE}" \
+            "${RELEASE_FILE}.sha256" \
+            --title "AdsPower ${VERSION} (${SHORT_SHA:0:7})" \
+            --generate-notes

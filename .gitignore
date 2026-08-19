@@ -1,0 +1,7 @@
+adspower/AppDir/
+adspower/.deb-extracted/
+adspower/deb_download/
+adspower/deb_info.json
+adspower/appimagetool-*.AppImage
+adspower/*.AppImage
+adspower/*.sha256
