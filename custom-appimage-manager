@@ -43,7 +43,7 @@ fetch_management_scripts() {
         chmod +x "$dest/$name"
         ;;
     esac
-  done < <(python3 -c 'import json,sys; [print(f"{x[\"name\"]}\t{x[\"download_url\"]}") for x in json.load(sys.stdin) if x.get("type")=="file"]' <<<"$json")
+  done < <(python3 -c 'import json,sys; [print(x["name"]+"\t"+x["download_url"]) for x in json.load(sys.stdin) if x.get("type")=="file"]' <<<"$json")
   for required in run-sandboxed.sh run check update install uninstall shortcut; do
     [ -f "$dest/$required" ] || { echo "Error: app $app is missing management-scripts/$required" >&2; exit 1; }
   done
