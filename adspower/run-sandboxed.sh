@@ -54,7 +54,8 @@ if [ "$ENGINE" = bwrap ]; then
     --ro-bind /lib64 /lib64
     --ro-bind /sys /sys
     --proc /proc
-    --dev /dev
+    --dir /dev
+    --tmpfs /dev/shm
     --tmpfs /tmp
     --tmpfs /opt
     --tmpfs /etc
@@ -93,6 +94,9 @@ if [ "$ENGINE" = bwrap ]; then
   if [ -e /dev/dri ]; then
     cmd+=(--dev-bind /dev/dri /dev/dri)
   fi
+  for device in null zero full random urandom tty; do
+    [ -e "/dev/${device}" ] && cmd+=(--dev-bind "/dev/${device}" "/dev/${device}")
+  done
 
   exec "${cmd[@]}" /opt/adspower.AppImage --appimage-extract-and-run "${ARGS[@]}"
 fi
