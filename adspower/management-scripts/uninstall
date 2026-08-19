@@ -3,8 +3,11 @@ set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME=adspower
 APPIMAGE="$(find "$APP_DIR" -maxdepth 1 -type f -name 'adspower-*.AppImage' -print -quit || true)"
-[ -n "$APPIMAGE" ] || { echo "AdsPower is not installed. Nothing to uninstall."; exit 0; }
-rm -f "$APPIMAGE" "$APP_DIR/.release-tag"
+if [ -n "$APPIMAGE" ]; then
+  rm -f "$APPIMAGE" "$APP_DIR/.release-tag"
+else
+  echo "AdsPower AppImage is not installed; removing management files anyway."
+fi
 find "$HOME/.local/share/applications" -maxdepth 1 -type f -name 'adspower-appimage-*.desktop' -delete 2>/dev/null || true
 INSTANCE_DIR="${HOME}/.local/share/${APP_NAME}-appimage"
 if [ -d "$INSTANCE_DIR" ]; then
@@ -12,4 +15,5 @@ if [ -d "$INSTANCE_DIR" ]; then
   read -r answer || answer=n
   case "$answer" in y|Y|yes|YES) rm -rf "$INSTANCE_DIR"; echo "Deleted $INSTANCE_DIR" ;; *) echo "Kept $INSTANCE_DIR" ;; esac
 fi
-echo "Uninstalled local AdsPower AppImage files from $APP_DIR"
+rm -rf "$APP_DIR"
+echo "Uninstalled AdsPower and removed $APP_DIR"

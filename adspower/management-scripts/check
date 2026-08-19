@@ -19,8 +19,25 @@ if [ -z "$LOCAL_FILE" ]; then
   exit 1
 fi
 if [ "$LOCAL_TAG" = "$REMOTE_TAG" ] && [ -f "$APP_DIR/management-scripts/install" ]; then
-  echo "AdsPower is up to date: $LOCAL_TAG ($REMOTE_NAME)"
+  echo "AdsPower AppImage is up to date: $LOCAL_TAG ($REMOTE_NAME)"
 else
-  echo "Update available: local=${LOCAL_TAG:-none}, remote=${REMOTE_TAG} (${REMOTE_NAME})"
-  exit 0
+  echo "AppImage update available: local=${LOCAL_TAG:-none}, remote=${REMOTE_TAG} (${REMOTE_NAME})"
+fi
+
+SCRIPT_JSON="$(curl --fail --location --silent --show-error \
+  "https://api.github.com/repos/willowypanda/appimages-repo/contents/adspower/management-scripts?ref=main")"
+script_updates=0
+while IFS=$'\t' read -r name url; do
+  [ -n "$name" ] || continue
+  local_hash="$(sha256sum "$APP_DIR/management-scripts/$name" 2>/dev/null | awk '{print $1}' || true)"
+  remote_hash="$(curl --fail --location --silent --show-error "$url" | sha256sum | awk '{print $1}')"
+  if [ "$local_hash" != "$remote_hash" ]; then
+    echo "Management script update available: $name"
+    script_updates=$((script_updates + 1))
+  fi
+done < <(python3 -c 'import json,sys; [print(x["name"]+"\t"+x["download_url"]) for x in json.load(sys.stdin) if x.get("type")=="file"]' <<<"$SCRIPT_JSON")
+if [ "$script_updates" -eq 0 ] && [ "$LOCAL_TAG" = "$REMOTE_TAG" ]; then
+  echo "All AdsPower AppImage and management scripts are current."
+else
+  echo "$script_updates management script update(s) available. Run: custom-appimage-manager app adspower update"
 fi
