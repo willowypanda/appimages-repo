@@ -2,13 +2,20 @@ name: Build AdsPower AppImage release
 
 on:
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: Build and release even when AdsPower version has not changed
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
       - 'adspower/**'
       - '.github/workflows/build-adspower-appimage.yml'
   schedule:
-    - cron: '30 */6 * * *'
+    # 02:00 Asia/Shanghai (UTC+8) = 18:00 UTC on the previous day.
+    - cron: '0 18 * * *'
 
 permissions:
   contents: write
@@ -25,17 +32,50 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dpkg-dev curl python3 file
 
+      - name: Check whether a new AdsPower version is available
+        id: check
+        working-directory: adspower
+        env:
+          FORCE_BUILD: ${{ inputs.force_build || false }}
+        run: |
+          set -euo pipefail
+          chmod +x download-latest.sh
+          ./download-latest.sh
+          REMOTE_VERSION="$(python3 -c "import json; print(json.load(open('deb_info.json'))['version'])")"
+          RELEASES_JSON="$(curl --fail --location --silent --show-error \
+            'https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100')"
+          RELEASE_VERSION="$(printf '%s' "${RELEASES_JSON}" | python3 -c '
+          import json,re,sys
+          versions=[]
+          for release in json.load(sys.stdin):
+              for asset in release.get("assets", []):
+                  m=re.fullmatch(r"adspower-([0-9]+(?:\\.[0-9]+)*)-[0-9a-f]+\\.AppImage", asset.get("name", ""))
+                  if m: versions.append(tuple(int(x) for x in m.group(1).split(".")))
+          print(".".join(map(str,max(versions))) if versions else "")
+          ')"
+          SHOULD_BUILD=false
+          if [ "${FORCE_BUILD}" = true ] || [ -z "${RELEASE_VERSION}" ]; then
+            SHOULD_BUILD=true
+          elif [ "$(printf '%s\n' "${RELEASE_VERSION}" "${REMOTE_VERSION}" | sort -V | tail -1)" != "${RELEASE_VERSION}" ]; then
+            SHOULD_BUILD=true
+          fi
+          echo "AdsPower upstream version: ${REMOTE_VERSION}"
+          echo "Latest released AppImage version: ${RELEASE_VERSION:-none}"
+          echo "Should build: ${SHOULD_BUILD}"
+          echo "should_build=${SHOULD_BUILD}" >> "$GITHUB_OUTPUT"
+          echo "version=${REMOTE_VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Build AppImage
         id: build
+        if: steps.check.outputs.should_build == 'true'
         working-directory: adspower
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           chmod +x download-latest.sh build-appimage.sh
-          ./download-latest.sh
           ./build-appimage.sh
-          VERSION="$(python3 -c "import json; print(json.load(open('deb_info.json'))['version'])")"
+          VERSION="${{ steps.check.outputs.version }}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
           RELEASE_FILE="adspower-${VERSION}-${SHORT_SHA}.AppImage"
           BUILT="$(find . -maxdepth 1 -type f -name 'adspower-*.AppImage' -print -quit)"
@@ -48,6 +88,7 @@ jobs:
           echo "release_file=${RELEASE_FILE}" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test AppImage metadata
+        if: steps.check.outputs.should_build == 'true'
         working-directory: adspower
         env:
           APPIMAGE: ${{ steps.build.outputs.release_file }}
@@ -56,6 +97,7 @@ jobs:
           "./${APPIMAGE}" --appimage-version || true
 
       - name: Create GitHub release
+        if: steps.check.outputs.should_build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.build.outputs.version }}
