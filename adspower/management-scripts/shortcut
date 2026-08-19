@@ -10,8 +10,9 @@ list_shortcuts() {
   find "$DESKTOP_DIR" -maxdepth 1 -type f -name "${PREFIX}*.desktop" -printf '%f\n' 2>/dev/null | sort
 }
 create_shortcut() {
-  local instance="${1:?missing instance name}" file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
+  local instance="${1:?missing instance name}"
   case "$instance" in *[!A-Za-z0-9._-]*|'') echo "Invalid instance name" >&2; exit 2 ;; esac
+  local file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
   if [ -e "$file" ]; then echo "Shortcut already exists: $file"; return 0; fi
   cat > "$file" <<EOF
 [Desktop Entry]
@@ -28,7 +29,9 @@ EOF
   echo "Created $file"
 }
 delete_shortcut() {
-  local instance="${1:?missing instance name}" file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
+  local instance="${1:?missing instance name}"
+  case "$instance" in *[!A-Za-z0-9._-]*|'') echo "Invalid instance name" >&2; exit 2 ;; esac
+  local file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
   if [ ! -e "$file" ]; then echo "Shortcut does not exist: $file"; return 0; fi
   rm -f "$file"; echo "Deleted $file"
 }

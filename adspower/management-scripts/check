@@ -2,7 +2,7 @@
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API="https://api.github.com/repos/willowypanda/appimages-repo/releases?per_page=30"
-read -r REMOTE_TAG REMOTE_NAME < <(curl --fail --location --silent --show-error "$API" | python3 -c '
+read -r REMOTE_TAG REMOTE_NAME < <(curl --fail --location --silent --show-error --max-time 30 "$API" | python3 -c '
 import json,sys
 for r in json.load(sys.stdin):
     a=next((x for x in r.get("assets",[]) if x.get("name","").startswith("adspower-") and x.get("name","").endswith(".AppImage")),None)
@@ -24,13 +24,13 @@ else
   echo "AppImage update available: local=${LOCAL_TAG:-none}, remote=${REMOTE_TAG} (${REMOTE_NAME})"
 fi
 
-SCRIPT_JSON="$(curl --fail --location --silent --show-error \
+SCRIPT_JSON="$(curl --fail --location --silent --show-error --max-time 30 \
   "https://api.github.com/repos/willowypanda/appimages-repo/contents/adspower/management-scripts?ref=main")"
 script_updates=0
 while IFS=$'\t' read -r name url; do
   [ -n "$name" ] || continue
   local_hash="$(sha256sum "$APP_DIR/management-scripts/$name" 2>/dev/null | awk '{print $1}' || true)"
-  remote_hash="$(curl --fail --location --silent --show-error "$url" | sha256sum | awk '{print $1}')"
+  remote_hash="$(curl --fail --location --silent --show-error --max-time 30 "$url" | sha256sum | awk '{print $1}')"
   if [ "$local_hash" != "$remote_hash" ]; then
     echo "Management script update available: $name"
     script_updates=$((script_updates + 1))

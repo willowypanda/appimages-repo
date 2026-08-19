@@ -6,7 +6,8 @@ DEB_ARG=""
 for arg in "$@"; do
   case "$arg" in
     -*) echo "Unknown option: $arg" >&2; exit 2 ;;
-    *) DEB_ARG="$arg" ;;
+    *) [ -z "$DEB_ARG" ] || { echo "Error: only one .deb file may be specified" >&2; exit 2; }
+       DEB_ARG="$arg" ;;
   esac
 done
 

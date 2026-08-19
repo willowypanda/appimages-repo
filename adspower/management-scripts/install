@@ -28,9 +28,9 @@ fi
 tmp="$(mktemp "$APP_DIR/.download.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 curl --fail --location --progress-bar "$ASSET_URL" -o "$tmp"
-chmod +x "$tmp"
 # Keep only the current AppImage; management scripts and instance data are preserved.
 find "$APP_DIR" -maxdepth 1 -type f -name 'adspower-*.AppImage' -delete
 mv "$tmp" "$TARGET"
+chmod +x "$TARGET"
 printf '%s\n' "$TAG" > "$MARKER"
 echo "Installed AdsPower $TAG: $TARGET"

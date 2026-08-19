@@ -16,8 +16,8 @@ ENGINE=bwrap
 ARGS=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --instance) INSTANCE="${2:?missing instance name}"; shift 2 ;;
-    --appimage) APPIMAGE="${2:?missing AppImage path}"; shift 2 ;;
+    --instance) [ $# -ge 2 ] || { echo "Error: --instance requires a value" >&2; exit 2; }; INSTANCE="$2"; shift 2 ;;
+    --appimage) [ $# -ge 2 ] || { echo "Error: --appimage requires a value" >&2; exit 2; }; APPIMAGE="$2"; shift 2 ;;
     --bwrap) ENGINE=bwrap; shift ;;
     --) shift; ARGS=("$@"); break ;;
     -h|--help) usage; exit 0 ;;
