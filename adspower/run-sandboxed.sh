@@ -63,6 +63,7 @@ if [ "$ENGINE" = bwrap ]; then
     --ro-bind "$APPIMAGE" /opt/adspower.AppImage
     --bind "$INSTANCE_HOME" "$HOME"
     --bind "$HOST_DOWNLOADS" "$HOME/Downloads"
+    --chdir "$HOME"
     --setenv HOME "$HOME"
     --setenv USER "${USER}"
     --setenv DISPLAY "${DISPLAY:-}"
@@ -93,5 +94,5 @@ if [ "$ENGINE" = bwrap ]; then
     cmd+=(--dev-bind /dev/dri /dev/dri)
   fi
 
-  exec "${cmd[@]}" /opt/adspower.AppImage "${ARGS[@]}"
+  exec "${cmd[@]}" /opt/adspower.AppImage --appimage-extract-and-run "${ARGS[@]}"
 fi
