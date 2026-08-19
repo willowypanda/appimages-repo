@@ -15,6 +15,7 @@ usage() {
 Usage:
   custom-appimage-manager install
   custom-appimage-manager self-update
+  custom-appimage-manager update-all
   custom-appimage-manager app APP install
   custom-appimage-manager app APP
   custom-appimage-manager app APP SCRIPT [ARGS...]
@@ -110,6 +111,21 @@ case "${1:-}" in
   self-update)
     [ "$#" -eq 1 ] || { echo "Usage: $0 self-update" >&2; exit 2; }
     self_update
+    ;;
+  update-all)
+    [ "$#" -eq 1 ] || { echo "Usage: $0 update-all" >&2; exit 2; }
+    mapfile -t apps < <(installed_apps)
+    if [ "${#apps[@]}" -eq 0 ]; then
+      echo "No installed apps found under $BASE_DIR"
+      exit 0
+    fi
+    for app in "${apps[@]}"; do
+      echo "Updating $app..."
+      dir="$(app_dir "$app")"
+      path="$dir/management-scripts/update"
+      [ -x "$path" ] || { echo "Script update is not available for app '$app'" >&2; exit 1; }
+      "$path"
+    done
     ;;
   app)
     [ "$#" -ge 2 ] || { usage >&2; exit 2; }

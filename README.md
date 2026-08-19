@@ -28,6 +28,14 @@ The manager can update itself from the latest `main` branch version:
 custom-appimage-manager self-update
 ```
 
+Update every installed app:
+
+```bash
+custom-appimage-manager update-all
+```
+
+This finds every app directory under `~/CustomAppimages` and runs its app-specific `management-scripts/update` script. If no apps are installed, it exits successfully without doing anything.
+
 The manager downloads app-specific management scripts from:
 
 ```text
