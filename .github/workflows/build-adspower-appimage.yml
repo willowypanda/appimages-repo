@@ -64,8 +64,14 @@ jobs:
         working-directory: adspower
         run: |
           TAG="adspower-v${VERSION}-${SHORT_SHA:0:7}"
-          gh release create "${TAG}" \
-            "${RELEASE_FILE}" \
-            "${RELEASE_FILE}.sha256" \
-            --title "AdsPower ${VERSION} (${SHORT_SHA:0:7})" \
-            --generate-notes
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" \
+              "${RELEASE_FILE}" "${RELEASE_FILE}.sha256" \
+              --clobber
+          else
+            gh release create "${TAG}" \
+              "${RELEASE_FILE}" \
+              "${RELEASE_FILE}.sha256" \
+              --title "AdsPower ${VERSION} (${SHORT_SHA:0:7})" \
+              --generate-notes
+          fi
