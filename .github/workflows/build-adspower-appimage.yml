@@ -43,7 +43,7 @@ jobs:
           ./download-latest.sh
           REMOTE_VERSION="$(python3 -c "import json; print(json.load(open('deb_info.json'))['version'])")"
           RELEASES_JSON="$(curl --fail --location --silent --show-error \
-            'https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100')"
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100")"
           RELEASE_VERSION="$(printf '%s' "${RELEASES_JSON}" | python3 -c '
           import json,re,sys
           versions=[]
