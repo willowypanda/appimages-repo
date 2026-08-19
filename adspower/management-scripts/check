@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-API="https://api.github.com/repos/willowypanda/appimages-repo/releases/latest"
+API="https://api.github.com/repos/willowypanda/appimages-repo/releases?per_page=30"
 read -r REMOTE_TAG REMOTE_NAME < <(curl --fail --location --silent --show-error "$API" | python3 -c '
 import json,sys
-r=json.load(sys.stdin)
-a=next((x for x in r.get("assets",[]) if x.get("name","").startswith("adspower-") and x.get("name","").endswith(".AppImage")),None)
-if not a: raise SystemExit("latest release has no AdsPower AppImage")
-print(r["tag_name"], a["name"])
+for r in json.load(sys.stdin):
+    a=next((x for x in r.get("assets",[]) if x.get("name","").startswith("adspower-") and x.get("name","").endswith(".AppImage")),None)
+    if a:
+        print(r["tag_name"], a["name"])
+        break
+else:
+    raise SystemExit("no AdsPower AppImage asset found in recent releases")
 ')
 LOCAL_TAG="$(cat "$APP_DIR/.release-tag" 2>/dev/null || true)"
 LOCAL_FILE="$(find "$APP_DIR" -maxdepth 1 -type f -name 'adspower-*.AppImage' -print -quit || true)"

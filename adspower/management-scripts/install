@@ -2,16 +2,19 @@
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="adspower"
-API="https://api.github.com/repos/willowypanda/appimages-repo/releases/latest"
+API="https://api.github.com/repos/willowypanda/appimages-repo/releases?per_page=30"
 mkdir -p "$APP_DIR"
 
 read -r TAG ASSET_URL ASSET_NAME < <(curl --fail --location --silent --show-error "$API" | python3 -c '
 import json,sys
-r=json.load(sys.stdin)
-assets=[a for a in r.get("assets",[]) if a.get("name","").startswith("adspower-") and a.get("name","").endswith(".AppImage")]
-if not assets: raise SystemExit("latest release has no AdsPower AppImage")
-a=assets[0]
-print(r["tag_name"], a["browser_download_url"], a["name"])
+for r in json.load(sys.stdin):
+    assets=[a for a in r.get("assets",[]) if a.get("name","").startswith("adspower-") and a.get("name","").endswith(".AppImage")]
+    if assets:
+        a=assets[0]
+        print(r["tag_name"], a["browser_download_url"], a["name"])
+        break
+else:
+    raise SystemExit("no AdsPower AppImage asset found in recent releases")
 ')
 TARGET="$APP_DIR/$ASSET_NAME"
 MARKER="$APP_DIR/.release-tag"
