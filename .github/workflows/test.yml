@@ -1,0 +1,48 @@
+name: Test suite
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'custom-appimage-manager'
+      - 'adspower/**'
+      - 'tests/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap shellcheck
+
+      - name: Shell syntax check
+        run: |
+          for f in custom-appimage-manager adspower/*.sh adspower/management-scripts/*; do
+            bash -n "$f"
+          done
+
+      - name: ShellCheck (non-blocking)
+        run: |
+          shellcheck custom-appimage-manager adspower/download-latest.sh \
+            adspower/build-appimage.sh adspower/management-scripts/* || true
+
+      - name: Run test suite
+        run: tests/run-tests.sh
+
+      - name: Verify repo not polluted by tests
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            exit 1
+          fi

@@ -269,6 +269,8 @@ The app's `install` script must:
 
 The common manager automatically downloads the app's `management-scripts` directory and dispatches commands to the app-specific scripts.
 
+New apps should also add a test config (`tests/apps/<name>/config.sh`) and pass the contract suite — see `tests/README.md`.
+
 ## Command contract
 
 ```text
