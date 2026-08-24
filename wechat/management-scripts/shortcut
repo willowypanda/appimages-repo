@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Manage desktop shortcuts for WeChat instances.
+set -euo pipefail
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_NAME="wechat"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+DESKTOP_DIR="${DATA_HOME}/applications"
+INSTANCE_ROOT="${DATA_HOME}/${APP_NAME}-appimage/instances"
+PREFIX="${APP_NAME}-appimage-"
+mkdir -p "$DESKTOP_DIR"
+
+list_shortcuts() {
+  find "$DESKTOP_DIR" -maxdepth 1 -type f -name "${PREFIX}*.desktop" -printf '%f\n' 2>/dev/null | sort
+}
+create_shortcut() {
+  local instance="${1:?missing instance name}"
+  case "$instance" in ''|*[!A-Za-z0-9._-]*|[!A-Za-z0-9]*) echo "Invalid instance name" >&2; exit 2 ;; esac
+  local file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
+  if [ -e "$file" ]; then echo "Shortcut already exists: $file"; return 0; fi
+  # Absolute path: desktop environments may not include ~/.local/bin in PATH.
+  local manager="${HOME}/.local/bin/custom-appimage-manager"
+  cat > "$file" <<EOF
+[Desktop Entry]
+Name=WeChat (${instance})
+Comment=Run WeChat AppImage instance ${instance}
+Exec=${manager} run ${instance}
+Terminal=false
+Type=Application
+Icon=wechat
+Categories=Network;InstantMessaging;
+StartupWMClass=WeChat
+EOF
+  chmod 644 "$file"
+  echo "Created $file"
+}
+delete_shortcut() {
+  local instance="${1:?missing instance name}"
+  case "$instance" in ''|*[!A-Za-z0-9._-]*|[!A-Za-z0-9]*) echo "Invalid instance name" >&2; exit 2 ;; esac
+  local file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
+  if [ ! -e "$file" ]; then echo "Shortcut does not exist: $file"; return 0; fi
+  rm -f "$file"; echo "Deleted $file"
+}
+sync_shortcuts() {
+  local instances instance
+  mapfile -t instances < <(find "$INSTANCE_ROOT" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
+  for instance in "${instances[@]}"; do
+    [ -e "$DESKTOP_DIR/${PREFIX}${instance}.desktop" ] || create_shortcut "$instance"
+  done
+}
+case "${1:-list}" in
+  list) list_shortcuts ;;
+  create) create_shortcut "${2:?Usage: shortcut create INSTANCE}" ;;
+  delete) delete_shortcut "${2:?Usage: shortcut delete INSTANCE}" ;;
+  sync) sync_shortcuts ;;
+  *) echo "Usage: shortcut [list|create|delete|sync] [INSTANCE]" >&2; exit 2 ;;
+esac

@@ -5,12 +5,12 @@ LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../lib" && pwd)"
 . "$LIB/lib.sh"
 
 run_contract_suite() {
-  APP_CONFIG="$REPO_DIR/tests/apps/adspower/config.sh" \
+  APP_CONFIG="$REPO_DIR/tests/apps/$1/config.sh" \
     bash "$REPO_DIR/tests/contract/test-contract.bash"
 }
 
 t adspower-passes-contract-suite -- true
-out="$(run_contract_suite 2>&1)"; rc=$?
+out="$(run_contract_suite adspower 2>&1)"; rc=$?
 assert_eq "$rc" "0" "contract suite rc: $out"
 _pass
 
@@ -59,6 +59,18 @@ cd "$SANDBOX/work" && bash "$APP/management-scripts/run" default >/dev/null 2>&1
 expected_user="$(id -un)"
 argv="$(tr '\0' '\n' < "$MOCK_BWRAP_LOG" | paste -sd ' ' -)"
 assert_contains "$argv" "USER $expected_user" "USER fallback value in bwrap argv"
+cleanup_sandbox
+
+t launcher-and-shortcut-share-xdg-instance-root -- true
+mk_sandbox; use_sandbox_env
+APP="$SANDBOX_HOME/CustomAppimages/adspower"
+mkdir -p "$APP/management-scripts"
+cp "$REPO_DIR"/adspower/management-scripts/* "$APP/management-scripts/"
+: > "$APP/adspower-1.0.0-x86_64.AppImage"
+export MOCK_BWRAP_LOG="$SANDBOX/bwrap.log"
+bash "$APP/management-scripts/run" work >/dev/null 2>&1
+bash "$APP/management-scripts/shortcut" sync >/dev/null 2>&1
+assert_file_exists "$XDG_DATA_HOME/applications/adspower-appimage-work.desktop"
 cleanup_sandbox
 
 summary

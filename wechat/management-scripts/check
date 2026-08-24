@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Check whether upstream WeChat has a newer AppImage.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_common.sh
+. "$SCRIPT_DIR/_common.sh"
+
+if [ ! -f "$TARGET" ]; then
+  echo "WeChat is not installed. Use: custom-appimage-manager app wechat install"
+  exit 1
+fi
+
+REMOTE_TAG="$(remote_tag)"
+LOCAL_TAG="$(installed_version)"
+if [ "$LOCAL_TAG" = "$REMOTE_TAG" ]; then
+  echo "WeChat is up to date ($LOCAL_TAG)"
+else
+  echo "Update available: local=${LOCAL_TAG:-none}, remote=$REMOTE_TAG. Run: custom-appimage-manager app wechat update"
+fi

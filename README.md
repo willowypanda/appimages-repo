@@ -6,6 +6,7 @@ Current application:
 
 ```text
 adspower/
+wechat/
 ```
 
 ## Install the common manager
@@ -55,6 +56,29 @@ install
 uninstall
 shortcut
 ```
+
+## Install and manage WeChat
+
+WeChat Linux ships an official AppImage at a rolling URL, so no .deb
+conversion or GitHub release lookup is involved:
+
+```bash
+custom-appimage-manager app wechat install
+```
+
+The install is idempotent: upstream is identified by `Last-Modified` +
+`Content-Length`, and the download is skipped when the file is unchanged.
+
+```bash
+custom-appimage-manager app wechat          # run default instance
+custom-appimage-manager app wechat run work # named instance
+custom-appimage-manager app wechat check    # check for updates
+custom-appimage-manager app wechat update   # update, preserving instances
+```
+
+Sandboxing matches AdsPower: bubblewrap with an explicit allowlist, per-
+instance HOME under `~/.local/share/wechat-appimage/instances/`, and the
+host `~/Downloads` mounted read-write as the instance's `~/Downloads`.
 
 ## Install and manage AdsPower
 

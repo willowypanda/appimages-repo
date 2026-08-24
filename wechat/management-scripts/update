@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Update WeChat to the latest AppImage. Instance data is preserved.
+set -euo pipefail
+exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install"

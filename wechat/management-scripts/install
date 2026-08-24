@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Install (or update) the WeChat Linux AppImage from the official URL.
+# Idempotent: skips download when the upstream file is unchanged.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_common.sh
+. "$SCRIPT_DIR/_common.sh"
+mkdir -p "$APP_DIR"
+
+REMOTE_TAG="$(remote_tag)"
+if [ -f "$TARGET" ] && [ "$(installed_version)" = "$REMOTE_TAG" ]; then
+  chmod +x "$TARGET"
+  echo "WeChat is already installed: $TARGET ($REMOTE_TAG)"
+  exit 0
+fi
+
+tmp="$(mktemp "$APP_DIR/.download.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+curl --fail --location --progress-bar --max-time 1800 "$DOWNLOAD_URL" -o "$tmp"
+chmod +x "$tmp"
+# Keep only the current AppImage; instance data is preserved.
+find "$APP_DIR" -maxdepth 1 -type f -name 'WeChatLinux_*.AppImage' ! -path "$TARGET" -delete
+mv "$tmp" "$TARGET"
+trap - EXIT
+printf '%s\n' "$REMOTE_TAG" > "$MARKER"
+echo "Installed WeChat: $TARGET ($REMOTE_TAG)"

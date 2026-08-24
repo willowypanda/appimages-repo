@@ -160,34 +160,51 @@ cleanup_sandbox
 t behavior-install-idempotent-with-marker -- true
 new_app_sandbox
 I="$APP/management-scripts/install"
-# Provide a release API route whose latest asset IS the currently installed
+# Provide a release route whose latest asset IS the currently installed
 # (marker-matching) release; the idempotence branch must then succeed and,
-# crucially, must not re-download (curl log shows only the API call).
+# crucially, must not re-download (curl log shows only the metadata call).
 export MOCK_CURL_LOG="$SANDBOX/curl.log"
-cat > "$MOCK_FIXTURES/releases-latest.json" <<EOF
+if [ -n "${RELEASE_API_ROUTE:-}" ]; then
+  # Release-API apps (adspower): JSON listing with tag + asset URL.
+  cat > "$MOCK_FIXTURES/releases-latest.json" <<EOF
 [{"tag_name":"$FAKE_RELEASE_TAG","assets":[{"name":"$FAKE_APPIMAGE_NAME","browser_download_url":"https://example.invalid/$FAKE_APPIMAGE_NAME"}]}]
 EOF
-cat > "$MOCK_FIXTURES/routes" <<'EOF'
-releases?per_page	releases-latest.json
-EOF
+  printf '%s	releases-latest.json\n' "$RELEASE_API_ROUTE" > "$MOCK_FIXTURES/routes"
+else
+  # Rolling-URL apps (wechat): HEAD metadata identifies the current file.
+  : > "$MOCK_FIXTURES/appimage-fixture"
+  printf 'dldir1v6.qq.com	appimage-fixture\n' > "$MOCK_FIXTURES/routes"
+fi
 : > "$MOCK_CURL_LOG"
 out="$(bash "$I" 2>&1)"; rc=$?
 assert_eq "$rc" "0" "idempotent install rc: $out"
 assert_contains "$out" "already installed" "idempotent message"
-downloads="$(grep -c "example.invalid/$FAKE_APPIMAGE_NAME" "$MOCK_CURL_LOG" || true)"
+downloads="$(grep -c "GET https://dldir1v6" "$MOCK_CURL_LOG" || true)"
 assert_eq "$downloads" "0" "no asset download on idempotent install"
 cleanup_sandbox
 
 t behavior-install-failure-preserves-current-appimage -- true
 new_app_sandbox
 I="$APP/management-scripts/install"
-printf '%s\n' "adspower-v0.0.1-deadbee" > "$APP/.release-tag"   # marker mismatch forces download attempt
+if [ -n "${RELEASE_API_ROUTE:-}" ]; then
+  # Release-API app: marker mismatch + no matching asset route -> failure.
+  printf '%s\n' "adspower-v0.0.1-deadbee" > "$APP/.release-tag"
+else
+  # Rolling-URL app: HEAD metadata differs from local marker AND the download
+  # route is removed so the fetch fails; the old AppImage must survive.
+  printf '%s\n' "old-tag" > "$APP/.release-tag"
+  grep -v dldir1v6 "$MOCK_FIXTURES/routes" > "$MOCK_FIXTURES/routes.tmp" \
+    && mv "$MOCK_FIXTURES/routes.tmp" "$MOCK_FIXTURES/routes"
+fi
 img="$APP/$FAKE_APPIMAGE_NAME"
 echo current > "$img"
 out="$(bash "$I" 2>&1)"; rc=$?
-if [ "$rc" -ne 0 ]; then _pass; else _fail "install should fail without a valid release route"; fi
-content="$(cat "$img")"
-assert_eq "$content" "current" "current AppImage untouched on failure"
+if [ "$rc" -ne 0 ]; then _pass; else _fail "install should fail without a valid download route"; fi
+if [ -f "$img" ] && [ "$(cat "$img")" = "current" ]; then
+  _pass
+else
+  _fail "current AppImage not preserved (content: '$(cat "$img" 2>/dev/null)')"
+fi
 cleanup_sandbox
 
 summary

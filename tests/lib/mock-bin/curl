@@ -27,18 +27,25 @@ fail_unknown() {
 # Parse enough of argv to know the URL and whether --fail/-o are used.
 url=""
 out_file=""
+head_request=0
 args=("$@")
 for ((i=0; i<${#args[@]}; i++)); do
   case "${args[$i]}" in
     --fail) : ;;
     -o|--output) out_file="${args[$((i+1))]}"; i=$((i+1)) ;;
-    -I|--head|-s|--silent|-S|--show-error|-L|--location|--progress-bar) : ;;
+    -I) head_request=1 ;;
+    --head) head_request=1 ;;
+    -s|--silent|-S|--show-error|-L|--location|--progress-bar) : ;;
     --max-time) i=$((i+1)) ;;
     http*://*) url="${args[$i]}" ;;
   esac
 done
 [ -n "$url" ] || fail_unknown "$*"
-log_call "GET $url"
+if [ "$head_request" = 1 ]; then
+  log_call "HEAD $url"
+else
+  log_call "GET $url"
+fi
 
 [ -f "$ROUTES" ] || { echo "mock-curl: routes file missing: $ROUTES" >&2; exit 77; }
 
@@ -83,6 +90,10 @@ fi
 
 if [ -n "$out_file" ]; then
   cp "$resp_path" "$out_file"
+elif [ "$head_request" = 1 ]; then
+  # HEAD request: emit a minimal HTTP header block derived from the fixture.
+  size="$(wc -c < "$resp_path")"
+  printf 'HTTP/1.1 200 OK\r\nContent-Length: %s\r\nLast-Modified: Mon, 10 Jul 2026 14:06:47 GMT\r\n\r\n' "$size"
 else
   cat "$resp_path"
 fi
