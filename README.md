@@ -36,6 +36,8 @@ custom-appimage-manager update-all
 
 This finds every app directory under `~/CustomAppimages` and runs its app-specific `management-scripts/update` script. If no apps are installed, it exits successfully without doing anything.
 
+If any app fails to update, the remaining apps are still updated, and the command exits non-zero at the end listing the failed apps.
+
 The manager downloads app-specific management scripts from:
 
 ```text
@@ -148,7 +150,7 @@ This creates:
 The desktop entry runs:
 
 ```text
-custom-appimage-manager run work
+~/.local/bin/custom-appimage-manager run work
 ```
 
 If the shortcut already exists, the command only reports it and does not overwrite it.

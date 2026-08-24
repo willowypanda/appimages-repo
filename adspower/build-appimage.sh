@@ -28,6 +28,7 @@ APPDIR="${PROJECT_DIR}/AppDir"
 EXTRACT="${PROJECT_DIR}/.deb-extracted"
 TOOL="${PROJECT_DIR}/appimagetool-x86_64.AppImage"
 OUTPUT="${PROJECT_DIR}/adspower-${VERSION}-x86_64.AppImage"
+OUTPUT_NAME="$(basename "$OUTPUT")"
 
 if [ ! -x "$TOOL" ]; then
   curl --fail --location --progress-bar \
@@ -37,6 +38,8 @@ if [ ! -x "$TOOL" ]; then
 fi
 
 rm -rf "$EXTRACT" "$APPDIR"
+# Remove stale build outputs so the post-build lookup cannot pick an old file.
+find "$PROJECT_DIR" -maxdepth 1 -type f -name 'adspower-*-x86_64.AppImage' -delete
 mkdir -p "$EXTRACT" "$APPDIR/usr/lib/${APP_ID}" "$APPDIR/usr/bin"
 dpkg-deb -x "$DEB" "$EXTRACT"
 cp -a "$EXTRACT/opt/AdsPower Global/." "$APPDIR/usr/lib/${APP_ID}/"
@@ -85,10 +88,7 @@ if ! "$TOOL" "AppDir"; then
   "$TOOL" --appimage-extract-and-run "AppDir"
 fi
 
-built="$(find "$PROJECT_DIR" -maxdepth 1 -type f -name '*.AppImage' ! -name 'appimagetool-x86_64.AppImage' -print -quit)"
-if [ -z "$built" ] && [ -f "$(dirname "$PROJECT_DIR")/AdsPower-x86_64.AppImage" ]; then
-  built="$(dirname "$PROJECT_DIR")/AdsPower-x86_64.AppImage"
-fi
+built="$(find "$PROJECT_DIR" -maxdepth 1 -type f -name "$OUTPUT_NAME" -print -quit)"
 [ -n "$built" ] || { echo "AppImage output was not found" >&2; exit 1; }
 [ "$built" = "$OUTPUT" ] || mv "$built" "$OUTPUT"
 echo "[+] Created $OUTPUT"

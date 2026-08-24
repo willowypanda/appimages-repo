@@ -78,8 +78,8 @@ jobs:
           VERSION="${{ steps.check.outputs.version }}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
           RELEASE_FILE="adspower-${VERSION}-${SHORT_SHA}.AppImage"
-          BUILT="$(find . -maxdepth 1 -type f -name 'adspower-*.AppImage' -print -quit)"
-          [ -n "${BUILT}" ]
+          BUILT="adspower-${VERSION}-x86_64.AppImage"
+          [ -f "${BUILT}" ]
           mv "${BUILT}" "${RELEASE_FILE}"
           chmod +x "${RELEASE_FILE}"
           file "${RELEASE_FILE}"

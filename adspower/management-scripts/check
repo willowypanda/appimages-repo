@@ -18,7 +18,7 @@ if [ -z "$LOCAL_FILE" ]; then
   echo "AdsPower is not installed. Use: custom-appimage-manager app adspower install"
   exit 1
 fi
-if [ "$LOCAL_TAG" = "$REMOTE_TAG" ] && [ -f "$APP_DIR/management-scripts/install" ]; then
+if [ "$LOCAL_TAG" = "$REMOTE_TAG" ]; then
   echo "AdsPower AppImage is up to date: $LOCAL_TAG ($REMOTE_NAME)"
 else
   echo "AppImage update available: local=${LOCAL_TAG:-none}, remote=${REMOTE_TAG} (${REMOTE_NAME})"

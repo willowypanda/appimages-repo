@@ -14,11 +14,13 @@ create_shortcut() {
   case "$instance" in *[!A-Za-z0-9._-]*|'') echo "Invalid instance name" >&2; exit 2 ;; esac
   local file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
   if [ -e "$file" ]; then echo "Shortcut already exists: $file"; return 0; fi
+  # Absolute path: desktop environments may not include ~/.local/bin in PATH.
+  local manager="${HOME}/.local/bin/custom-appimage-manager"
   cat > "$file" <<EOF
 [Desktop Entry]
 Name=AdsPower (${instance})
 Comment=Run AdsPower AppImage instance ${instance}
-Exec=custom-appimage-manager run ${instance}
+Exec=${manager} run ${instance}
 Terminal=false
 Type=Application
 Icon=adspower
@@ -37,7 +39,7 @@ delete_shortcut() {
 }
 sync_shortcuts() {
   local instances existing instance
-  mapfile -t instances < <(find "${HOME}/.local/share/${APP_NAME}-appimage" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
+  mapfile -t instances < <(find "${HOME}/.local/share/${APP_NAME}-appimage/instances" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
   for instance in "${instances[@]}"; do
     [ -e "$DESKTOP_DIR/${PREFIX}${instance}.desktop" ] || create_shortcut "$instance"
   done

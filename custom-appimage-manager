@@ -64,12 +64,15 @@ install_self() {
 
 self_update() {
   local tmp
-  tmp="$(mktemp)"
-  trap 'rm -f "$tmp"' RETURN
+  mkdir -p "$(dirname "$INSTALL_PATH")"
+  # Same-directory temp file: mv becomes an atomic rename(2) within one
+  # filesystem, and the EXIT trap cleans up on every failure path.
+  tmp="$(mktemp "$(dirname "$INSTALL_PATH")/.custom-appimage-manager.tmp.XXXXXX")"
+  trap 'rm -f "$tmp"' EXIT
   curl --fail --location --silent --show-error "${REPO_RAW}/custom-appimage-manager" -o "$tmp"
   chmod +x "$tmp"
-  mkdir -p "$(dirname "$INSTALL_PATH")"
   mv "$tmp" "$INSTALL_PATH"
+  trap - EXIT
   echo "Updated $INSTALL_PATH from ${REPO_OWNER}/${REPO_NAME}@${BRANCH}"
 }
 
@@ -119,17 +122,34 @@ case "${1:-}" in
       echo "No installed apps found under $BASE_DIR"
       exit 0
     fi
+    failures=()
     for app in "${apps[@]}"; do
+      valid_app "$app" || { echo "Skipping invalid app directory name: $app" >&2; failures+=("$app"); continue; }
       echo "Updating $app..."
       dir="$(app_dir "$app")"
       path="$dir/management-scripts/update"
-      [ -x "$path" ] || { echo "Script update is not available for app '$app'" >&2; exit 1; }
-      "$path"
+      if [ ! -x "$path" ]; then
+        echo "Script update is not available for app '$app'" >&2
+        failures+=("$app")
+        continue
+      fi
+      if ! "$path"; then
+        echo "Update failed for app '$app'" >&2
+        failures+=("$app")
+      fi
     done
+    if [ "${#failures[@]}" -gt 0 ]; then
+      echo "Failed to update: ${failures[*]}" >&2
+      exit 1
+    fi
     ;;
   app)
     [ "$#" -ge 2 ] || { usage >&2; exit 2; }
     app="$2"
+    if [ "$app" != shortcut ] && ! valid_app "$app"; then
+      echo "Error: invalid app name: $app" >&2
+      exit 2
+    fi
     # Convenience: `app shortcut ...` operates on the only installed app.
     if [ "$app" = shortcut ]; then
       app="$(resolve_one_app)"
@@ -156,7 +176,9 @@ case "${1:-}" in
     ;;
   shortcut)
     [ "$#" -ge 2 ] || { echo "Usage: $0 shortcut APP [list|create|delete|sync] [INSTANCE]" >&2; exit 2; }
-    app="$2"; shift 2
+    app="$2"
+    valid_app "$app" || { echo "Error: invalid app name: $app" >&2; exit 2; }
+    shift 2
     run_app_script "$app" shortcut "$@"
     ;;
   ''|-h|--help)
