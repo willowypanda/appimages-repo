@@ -6,7 +6,7 @@
 # candidate versions (HEAD requests are cheap) starting from KNOWN_LATEST.
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="baidupan"
+APP_NAME="baidunetdisk"
 CDN_BASE="https://issuecdn.baidupcs.com/issue/netdisk/LinuxGuanjia"
 KNOWN_LATEST="4.17.8"          # last version confirmed to exist (probed)
 PROBE_HIGHER=5                 # how many candidate versions to try above known

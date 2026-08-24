@@ -6,5 +6,5 @@ INSTANCE="${1:-default}"
 shift || true
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 APPIMAGE="$(find "$APP_DIR" -maxdepth 1 -type f -name 'baidunetdisk-*.AppImage' -print -quit || true)"
-[ -n "$APPIMAGE" ] || { echo "baidupan is not installed. Use: custom-appimage-manager app baidupan install" >&2; exit 1; }
+[ -n "$APPIMAGE" ] || { echo "baidunetdisk is not installed. Use: custom-appimage-manager app baidunetdisk install" >&2; exit 1; }
 exec "$SCRIPT_DIR/run-sandboxed.sh" --instance "$INSTANCE" --appimage "$APPIMAGE" -- "$@"

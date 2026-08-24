@@ -2,7 +2,7 @@
 # Bubblewrap launcher for the Baidu Net Disk AppImage.
 # Thin wrapper: sets app-specific knobs, then runs the shared launcher logic.
 set -euo pipefail
-APP_NAME="baidupan"
+APP_NAME="baidunetdisk"
 APPIMAGE_GLOB='baidunetdisk-*.AppImage'
 # Baidu Net Disk is an Electron app. It needs its resources next to the
 # binary inside the extracted AppDir, which --appimage-extract-and-run

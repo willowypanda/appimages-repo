@@ -9,8 +9,8 @@ adspower/*.sha256
 wechat/.appimagetool-*.AppImage
 wechat/*.AppImage
 
-baidupan/.appimagetool-*.AppImage
-baidupan/.extract.*/
-baidupan/*.AppImage
-baidupan/*.sha256
-baidupan/.download.*
+baidunetdisk/.appimagetool-*.AppImage
+baidunetdisk/.extract.*/
+baidunetdisk/*.AppImage
+baidunetdisk/*.sha256
+baidunetdisk/.download.*

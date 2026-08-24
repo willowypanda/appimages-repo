@@ -7,7 +7,7 @@ APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=_scripts-update.sh
 . "$SCRIPT_DIR/_scripts-update.sh"
 
-update_management_scripts baidupan "$APP_DIR" || \
+update_management_scripts baidunetdisk "$APP_DIR" || \
   echo "Warning: could not refresh management scripts; continuing with local copies." >&2
 
 exec "$SCRIPT_DIR/install"

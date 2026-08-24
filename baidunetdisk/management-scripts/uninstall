@@ -2,7 +2,7 @@
 # Uninstall Baidu Net Disk; asks before removing instance data.
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="baidupan"
+APP_NAME="baidunetdisk"
 APPIMAGE="$(find "$APP_DIR" -maxdepth 1 -type f -name 'baidunetdisk-*.AppImage' -print -quit || true)"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 if [ -n "$APPIMAGE" ]; then

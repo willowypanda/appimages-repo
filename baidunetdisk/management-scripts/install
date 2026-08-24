@@ -12,7 +12,7 @@ TARGET="$APP_DIR/baidunetdisk-x86_64.AppImage"
 REMOTE_VER="$(latest_release | awk '{print $1}')"
 if [ -f "$TARGET" ] && [ "$(cat "$MARKER" 2>/dev/null || true)" = "$REMOTE_VER" ]; then
   chmod +x "$TARGET"
-  echo "baidupan is already installed: $TARGET ($REMOTE_VER)"
+  echo "baidunetdisk is already installed: $TARGET ($REMOTE_VER)"
   exit 0
 fi
 
@@ -37,7 +37,7 @@ cat > "$appdir/AppRun" <<'EOF'
 set -eu
 APPDIR="$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)"
 export PATH="$APPDIR/usr/bin:$PATH"
-exec "$APPDIR/usr/lib/baidupan/baidunetdisk" "$@"
+exec "$APPDIR/usr/lib/baidunetdisk/baidunetdisk" "$@"
 EOF
 chmod +x "$appdir/AppRun"
 cat > "$appdir/baidunetdisk.desktop" <<'EOF'
@@ -72,4 +72,4 @@ chmod +x "$TARGET"
 rm -rf "$extract" "$deb_tmp"
 trap - EXIT
 printf '%s\n' "$REMOTE_VER" > "$MARKER"
-echo "Installed baidupan: $TARGET ($REMOTE_VER)"
+echo "Installed baidunetdisk: $TARGET ($REMOTE_VER)"

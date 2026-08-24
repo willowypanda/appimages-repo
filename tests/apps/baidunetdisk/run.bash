@@ -9,22 +9,22 @@ run_contract_suite() {
     bash "$REPO_DIR/tests/contract/test-contract.bash"
 }
 
-t baidupan-passes-contract-suite -- true
-out="$(run_contract_suite baidupan 2>&1)"; rc=$?
+t baidunetdisk-passes-contract-suite -- true
+out="$(run_contract_suite baidunetdisk 2>&1)"; rc=$?
 assert_eq "$rc" "0" "contract suite rc: $out"
 _pass
 
-new_baidupan_app() {
+new_baidunetdisk_app() {
   mk_sandbox; use_sandbox_env
-  APP="$SANDBOX_HOME/CustomAppimages/baidupan"
+  APP="$SANDBOX_HOME/CustomAppimages/baidunetdisk"
   mkdir -p "$APP/management-scripts" "$SANDBOX/bin" "$SANDBOX/work"
-  cp -a "$REPO_DIR"/baidupan/management-scripts/. "$APP/management-scripts/"
+  cp -a "$REPO_DIR"/baidunetdisk/management-scripts/. "$APP/management-scripts/"
   : > "$APP/baidunetdisk-x86_64.AppImage"
   export MOCK_CURL_LOG="$SANDBOX/curl.log"
 }
 
-t baidupan-latest-release-probes-candidates -- true
-new_baidupan_app
+t baidunetdisk-latest-release-probes-candidates -- true
+new_baidunetdisk_app
 # Mock HEAD fixtures: 200 for existing versions, 404 header block otherwise.
 printf 'HTTP/1.1 200 OK\r\nContent-Length: 189616700\r\n' > "$MOCK_FIXTURES/head-200"
 printf 'HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n'   > "$MOCK_FIXTURES/head-404"
@@ -40,8 +40,8 @@ assert_eq "$rc" "0" "latest_release rc: $out"
 assert_contains "$out" "4.17.10" "probes upward and finds newest existing"
 cleanup_sandbox
 
-t baidupan-check-compares-versions -- true
-new_baidupan_app
+t baidunetdisk-check-compares-versions -- true
+new_baidunetdisk_app
 C="$APP/management-scripts/check"
 printf '4.17.7\n' > "$APP/.release-tag"
 printf 'HTTP/1.1 200 OK\r\nContent-Length: 189616700\r\n' > "$MOCK_FIXTURES/head-200"

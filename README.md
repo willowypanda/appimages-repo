@@ -7,7 +7,7 @@ Current application:
 ```text
 adspower/
 wechat/
-baidupan/
+baidunetdisk/
 ```
 
 ## Install the common manager
@@ -61,19 +61,19 @@ shortcut
 ## Install and manage Baidu Net Disk
 
 Baidu Net Disk publishes versioned `.deb` packages on its CDN without a
-version listing API. `baidupan` discovers the latest version by probing
+version listing API. `baidunetdisk` discovers the latest version by probing
 candidate URLs, downloads the .deb, and repackages it into a runnable
 AppImage (appimagetool is fetched on first use):
 
 ```bash
-custom-appimage-manager app baidupan install   # download + repackage
-custom-appimage-manager app baidupan check     # check for newer version
-custom-appimage-manager app baidupan update    # refresh scripts + update
-custom-appimage-manager app baidupan run work  # named instance
+custom-appimage-manager app baidunetdisk install   # download + repackage
+custom-appimage-manager app baidunetdisk check     # check for newer version
+custom-appimage-manager app baidunetdisk update    # refresh scripts + update
+custom-appimage-manager app baidunetdisk run work  # named instance
 ```
 
 Sandboxing matches the other apps: bubblewrap with an explicit allowlist,
-per-instance HOME under `~/.local/share/baidupan-appimage/instances/`, host
+per-instance HOME under `~/.local/share/baidunetdisk-appimage/instances/`, host
 `~/Downloads` mounted read-write, and a per-instance fake machine-id.
 
 ## Install and manage WeChat

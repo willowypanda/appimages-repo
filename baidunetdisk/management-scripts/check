@@ -7,14 +7,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MARKER="$APP_DIR/.release-tag"
 
 if [ ! -f "$APP_DIR/baidunetdisk-x86_64.AppImage" ]; then
-  echo "baidupan is not installed. Use: custom-appimage-manager app baidupan install"
+  echo "baidunetdisk is not installed. Use: custom-appimage-manager app baidunetdisk install"
   exit 1
 fi
 
 REMOTE_VER="$(latest_release | awk '{print $1}')"
 LOCAL_VER="$(cat "$MARKER" 2>/dev/null || true)"
 if [ "$LOCAL_VER" = "$REMOTE_VER" ]; then
-  echo "baidupan is up to date ($LOCAL_VER)"
+  echo "baidunetdisk is up to date ($LOCAL_VER)"
 else
-  echo "Update available: local=${LOCAL_VER:-none}, remote=$REMOTE_VER. Run: custom-appimage-manager app baidupan update"
+  echo "Update available: local=${LOCAL_VER:-none}, remote=$REMOTE_VER. Run: custom-appimage-manager app baidunetdisk update"
 fi
