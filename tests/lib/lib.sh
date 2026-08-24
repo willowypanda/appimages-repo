@@ -11,6 +11,8 @@ FAIL_COUNT=0
 SKIP_COUNT=0
 CURRENT_TEST=""
 SANDBOX=""
+ORIGINAL_HOME="${HOME:-}"
+ORIGINAL_PATH="$PATH"
 
 # ---------------------------------------------------------------------------
 # Sandbox
@@ -19,17 +21,24 @@ SANDBOX=""
 # Create an isolated sandbox: fake HOME, XDG dirs, TMPDIR and a PATH whose
 # first entry is the mock bin dir. Every test MUST run inside one.
 mk_sandbox() {
-  SANDBOX="$(mktemp -d "/tmp/appimages-test.XXXXXX")"
+  local parent="${TMPDIR:-/tmp}"
+  [ -d "$parent" ] || parent=/tmp
+  SANDBOX="$(mktemp -d "$parent/appimages-test.XXXXXX")"
   SANDBOX_HOME="$SANDBOX/home"
   mkdir -p "$SANDBOX_HOME" \
            "$SANDBOX/xdg/config" "$SANDBOX/xdg/data" "$SANDBOX/xdg/cache" \
            "$SANDBOX/xdg/runtime" "$SANDBOX/tmp" \
-           "$SANDBOX/bin" "$SANDBOX/work"
+           "$SANDBOX/bin" "$SANDBOX/work" "$SANDBOX/fixtures/mock-curl"
   chmod 700 "$SANDBOX/xdg/runtime"
   # Mock commands dir; tests may add stubs here. curl is mocked to fail by
   # default (no real network); bwrap is mocked to record its argv.
   cp -r "$TESTS_DIR/lib/mock-bin/." "$SANDBOX/bin/"
   chmod +x "$SANDBOX/bin/"* 2>/dev/null || true
+  # Each test gets a private fixture copy so route changes cannot mutate the
+  # repository or race another test process.
+  cp -r "$TESTS_DIR/fixtures/mock-curl/." "$SANDBOX/fixtures/mock-curl/" 2>/dev/null || true
+  MOCK_FIXTURES="$SANDBOX/fixtures/mock-curl"
+  export MOCK_FIXTURES
 }
 
 # Apply the sandbox environment. Called after mk_sandbox, before running the
@@ -41,18 +50,31 @@ use_sandbox_env() {
   XDG_CACHE_HOME="$SANDBOX/xdg/cache"
   XDG_RUNTIME_DIR="$SANDBOX/xdg/runtime"
   TMPDIR="$SANDBOX/tmp"
-  PATH="$SANDBOX/bin:$PATH"
-  export HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_RUNTIME_DIR TMPDIR PATH
+  PATH="$SANDBOX/bin:$ORIGINAL_PATH"
+  export HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_RUNTIME_DIR TMPDIR PATH MOCK_FIXTURES
   umask 077
 }
 
 cleanup_sandbox() {
+  # Never remove the process's current working directory; doing so causes
+  # later commands to emit getcwd failures and can invalidate relative paths.
+  cd "$REPO_DIR" || return 1
   if [ -n "${KEEP_TEST_TMP:-}" ] && [ -n "${SANDBOX:-}" ]; then
     echo "KEEP_TEST_TMP set; sandbox kept at $SANDBOX" >&2
     return
   fi
-  [ -n "${SANDBOX:-}" ] && rm -rf "$SANDBOX"
+  if [ -n "${SANDBOX:-}" ]; then
+    case "$SANDBOX" in
+      */appimages-test.*) rm -rf "$SANDBOX" ;;
+      *) echo "Refusing to remove unexpected sandbox path: $SANDBOX" >&2; return 1 ;;
+    esac
+  fi
   SANDBOX=""
+  HOME="$ORIGINAL_HOME"
+  PATH="$ORIGINAL_PATH"
+  unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_RUNTIME_DIR TMPDIR
+  unset MOCK_BWRAP_LOG MOCK_BWRAP_RUN_TARGET MOCK_CURL_LOG MOCK_FIXTURES
+  export HOME PATH
 }
 
 # Run a command inside the sandbox env.
@@ -104,12 +126,11 @@ assert_empty_dir() {
 # Test framework
 # ---------------------------------------------------------------------------
 
-t() { # t NAME -- command...
-  CURRENT_TEST="$1"; shift
-  local out rc
-  out="$("$@" 2>&1)"; rc=$?
-  LAST_OUTPUT="$out"
-  LAST_RC="$rc"
+t() { # t NAME [-- ignored-legacy-args...]
+  # Tests perform their actions explicitly after setting the label. Earlier
+  # versions tried to execute the literal `--` argument here; the result was
+  # ignored, so that code provided no verification and was misleading.
+  CURRENT_TEST="$1"
 }
 
 summary() {

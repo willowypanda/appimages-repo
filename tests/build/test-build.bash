@@ -23,8 +23,9 @@ new_build_sandbox() {
 appdir="${@: -1}"
 desktop="$(find "$appdir" -maxdepth 1 -name '*.desktop' | head -1)"
 name="$(grep '^Name=' "$desktop" | head -1 | cut -d= -f2 | tr ' ' '_')"
-echo "AdsPower-x86_64.AppImage"
-touch "$(dirname "$appdir")/AdsPower-x86_64.AppImage"
+output="${name}-x86_64.AppImage"
+echo "$output"
+touch "$(dirname "$appdir")/$output"
 exit 0
 MOCK
   chmod +x "$SANDBOX/bin/appimagetool-x86_64.AppImage"

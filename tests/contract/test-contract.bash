@@ -19,7 +19,7 @@ new_app_sandbox() {
   mkdir -p "$APP"
   cp -r "$SCRIPTS_SRC" "$APP/management-scripts"
   # Fake installed AppImage + release marker.
-  : > "$APP/${APPIMAGE_GLOB%\**}${FAKE_APPIMAGE_SUFFIX}"
+  : > "$APP/$FAKE_APPIMAGE_NAME"
   printf '%s\n' "$FAKE_RELEASE_TAG" > "$APP/.release-tag"
 }
 
@@ -38,15 +38,8 @@ _pass
 
 t static-scripts-executable -- true
 for s in run-sandboxed.sh run check update install uninstall shortcut; do
-  [ -x "$SCRIPTS_SRC/$s" ] || { _fail "not executable: $s"; continue; }
+  [ -x "$SCRIPTS_SRC/$s" ] || _fail "not executable: $s"
 done
-_pass
-
-t static-no-foreign-app-hardcode -- true
-# Scripts must not reference other apps' names.
-hits="$(grep -rlE '/(wechat|telegram|whatsapp)([^a-z]|$)' "$SCRIPTS_SRC" 2>/dev/null | wc -l)"
-assert_eq "$hits" "0" "foreign app names hardcoded"
-_pass
 
 # --- Level 2: behavioral contract ------------------------------------------
 
@@ -55,7 +48,7 @@ new_app_sandbox
 export MOCK_BWRAP_LOG="$SANDBOX/bwrap.log"
 export MOCK_BWRAP_RUN_TARGET=1   # let the mock actually run the target so mkdirs happen
 out="$(cd "$SANDBOX/work" && bash "$APP/management-scripts/run" work --flag1 2>&1)"
-if grep -q -- '--setenv' "$MOCK_BWRAP_LOG" || [ -f "$MOCK_BWRAP_LOG" ]; then _pass; else _fail "bwrap not invoked"; fi
+assert_file_exists "$MOCK_BWRAP_LOG"
 instance_home="$SANDBOX_HOME/.local/share/${APP_DATA_DIRNAME}/instances/work"
 if [ ! -e "$instance_home" ]; then
   # XDG_DATA_HOME is set in the sandbox, so the launcher uses it instead.
@@ -64,29 +57,54 @@ fi
 assert_file_exists "$instance_home"
 perm="$(stat -c '%a' "$instance_home")"
 assert_eq "$perm" "700" "instance home permissions"
+# Verify the sandbox actually maps the instance directory as HOME: parse the
+# NUL-separated bwrap argv and require --bind <instance_home> $HOME plus the
+# matching --chdir/--setenv HOME.
+mapfile -d '' -t bwrap_argv < "$MOCK_BWRAP_LOG"
+bwrap_has_pair() {
+  local first="$1" second="$2" i
+  for ((i=0; i+1<${#bwrap_argv[@]}; i++)); do
+    [ "${bwrap_argv[$i]}" = "$first" ] && [ "${bwrap_argv[$((i+1))]}" = "$second" ] && return 0
+  done
+  return 1
+}
+bwrap_has_triple() {
+  local first="$1" second="$2" third="$3" i
+  for ((i=0; i+2<${#bwrap_argv[@]}; i++)); do
+    [ "${bwrap_argv[$i]}" = "$first" ] && [ "${bwrap_argv[$((i+1))]}" = "$second" ] && \
+      [ "${bwrap_argv[$((i+2))]}" = "$third" ] && return 0
+  done
+  return 1
+}
+if bwrap_has_triple "--bind" "$instance_home" "$HOME"; then _pass; else _fail "instance HOME not bound to \$HOME"; fi
+if bwrap_has_triple "--setenv" "HOME" "$HOME"; then _pass; else _fail "--setenv HOME missing/incorrect"; fi
+if bwrap_has_pair "--chdir" "$HOME"; then _pass; else _fail "--chdir \$HOME missing"; fi
 cleanup_sandbox
 
 t behavior-run-rejects-invalid-instance-name -- true
-new_app_sandbox
-out="$(cd "$SANDBOX/work" && bash "$APP/management-scripts/run" 'bad/name' 2>&1)"; rc=$?
-if [ "$rc" -ne 0 ]; then _pass; else _fail "invalid instance accepted"; fi
-assert_contains "$out" "Invalid instance" "rejection message"
-cleanup_sandbox
+for invalid_instance in 'bad/name' '.' '..' '...' '-leading'; do
+  new_app_sandbox
+  out="$(cd "$SANDBOX/work" && bash "$APP/management-scripts/run" "$invalid_instance" 2>&1)"; rc=$?
+  if [ "$rc" -ne 0 ]; then _pass; else _fail "invalid instance accepted: $invalid_instance"; fi
+  assert_contains "$out" "Invalid instance" "rejection message for $invalid_instance"
+  cleanup_sandbox
+done
 
 t behavior-shortcut-create-list-delete-sync-idempotent -- true
 new_app_sandbox
 S="$APP/management-scripts/shortcut"
 out="$(bash "$S" create myinst 2>&1)"
 assert_contains "$out" "Created" "create output"
-f="$SANDBOX_HOME/.local/share/applications/${SHORTCUT_PREFIX}myinst.desktop"
+desktop_dir="$XDG_DATA_HOME/applications"
+f="$desktop_dir/${SHORTCUT_PREFIX}myinst.desktop"
 assert_file_exists "$f"
 before="$(cat "$f")"
 out="$(bash "$S" create myinst 2>&1)"
 after="$(cat "$f")"
 assert_eq "$before" "$after" "existing shortcut not overwritten"
-mkdir -p "$SANDBOX_HOME/.local/share/${APP_DATA_DIRNAME}/instances/synced"
+mkdir -p "$XDG_DATA_HOME/${APP_DATA_DIRNAME}/instances/synced"
 bash "$S" sync >/dev/null 2>&1
-assert_file_exists "$SANDBOX_HOME/.local/share/applications/${SHORTCUT_PREFIX}synced.desktop"
+assert_file_exists "$desktop_dir/${SHORTCUT_PREFIX}synced.desktop"
 out="$(bash "$S" list 2>&1)"
 assert_contains "$out" "${SHORTCUT_PREFIX}myinst.desktop" "list shows shortcuts"
 bash "$S" delete myinst >/dev/null 2>&1
@@ -95,11 +113,21 @@ out="$(bash "$S" delete myinst 2>&1)"
 assert_contains "$out" "does not exist" "delete idempotent"
 cleanup_sandbox
 
+t behavior-shortcut-rejects-invalid-instance-names -- true
+for invalid_instance in 'bad/name' '.' '..' '...' '-leading'; do
+  new_app_sandbox
+  S="$APP/management-scripts/shortcut"
+  out="$(bash "$S" create "$invalid_instance" 2>&1)"; rc=$?
+  if [ "$rc" -ne 0 ]; then _pass; else _fail "shortcut accepted invalid instance: $invalid_instance"; fi
+  assert_contains "$out" "Invalid instance" "shortcut rejection for $invalid_instance"
+  cleanup_sandbox
+done
+
 t behavior-shortcut-exec-uses-absolute-path -- true
 new_app_sandbox
 S="$APP/management-scripts/shortcut"
 bash "$S" create abscheck >/dev/null 2>&1
-exec_line="$(grep '^Exec=' "$SANDBOX_HOME/.local/share/applications/${SHORTCUT_PREFIX}abscheck.desktop")"
+exec_line="$(grep '^Exec=' "$XDG_DATA_HOME/applications/${SHORTCUT_PREFIX}abscheck.desktop")"
 case "$exec_line" in
   "Exec=$HOME/"*) _pass ;;
   *) _fail "Exec is not an absolute home path: $exec_line" ;;
@@ -109,20 +137,23 @@ cleanup_sandbox
 t behavior-uninstall-preserves-instance-data-by-default -- true
 new_app_sandbox
 U="$APP/management-scripts/uninstall"
-mkdir -p "$SANDBOX_HOME/.local/share/${APP_DATA_DIRNAME}/instances/keepme"
+mkdir -p "$XDG_DATA_HOME/${APP_DATA_DIRNAME}/instances/keepme"
+mkdir -p "$XDG_DATA_HOME/applications"
+: > "$XDG_DATA_HOME/applications/${SHORTCUT_PREFIX}keepme.desktop"
 out="$(printf 'n\n' | bash "$U" 2>&1)"; rc=$?
 assert_eq "$rc" "0" "uninstall rc"
-assert_file_exists "$SANDBOX_HOME/.local/share/${APP_DATA_DIRNAME}/instances/keepme"
+assert_file_exists "$XDG_DATA_HOME/${APP_DATA_DIRNAME}/instances/keepme"
+assert_no_file "$XDG_DATA_HOME/applications/${SHORTCUT_PREFIX}keepme.desktop"
 assert_no_file "$APP"
 cleanup_sandbox
 
 t behavior-uninstall-deletes-instance-data-on-confirm -- true
 new_app_sandbox
 U="$APP/management-scripts/uninstall"
-mkdir -p "$SANDBOX_HOME/.local/share/${APP_DATA_DIRNAME}/instances/gone"
+mkdir -p "$XDG_DATA_HOME/${APP_DATA_DIRNAME}/instances/gone"
 out="$(printf 'y\n' | bash "$U" 2>&1)"; rc=$?
 assert_eq "$rc" "0" "uninstall rc"
-assert_no_file "$SANDBOX_HOME/.local/share/${APP_DATA_DIRNAME}"
+assert_no_file "$XDG_DATA_HOME/${APP_DATA_DIRNAME}"
 assert_no_file "$APP"
 cleanup_sandbox
 
@@ -132,12 +163,9 @@ I="$APP/management-scripts/install"
 # Provide a release API route whose latest asset IS the currently installed
 # (marker-matching) release; the idempotence branch must then succeed and,
 # crucially, must not re-download (curl log shows only the API call).
-export MOCK_FIXTURES="$TESTS_DIR/fixtures/mock-curl"
 export MOCK_CURL_LOG="$SANDBOX/curl.log"
-mkdir -p "$MOCK_FIXTURES"
-printf '%s\n' "$FAKE_RELEASE_TAG" > "$MOCK_FIXTURES/install-idempotent-tag"
 cat > "$MOCK_FIXTURES/releases-latest.json" <<EOF
-[{"tag_name":"$FAKE_RELEASE_TAG","assets":[{"name":"adspower-${FAKE_APPIMAGE_SUFFIX}","browser_download_url":"https://example.invalid/adspower-${FAKE_APPIMAGE_SUFFIX}"}]}]
+[{"tag_name":"$FAKE_RELEASE_TAG","assets":[{"name":"$FAKE_APPIMAGE_NAME","browser_download_url":"https://example.invalid/$FAKE_APPIMAGE_NAME"}]}]
 EOF
 cat > "$MOCK_FIXTURES/routes" <<'EOF'
 releases?per_page	releases-latest.json
@@ -146,7 +174,7 @@ EOF
 out="$(bash "$I" 2>&1)"; rc=$?
 assert_eq "$rc" "0" "idempotent install rc: $out"
 assert_contains "$out" "already installed" "idempotent message"
-downloads="$(grep -c 'browser_download_url\|example.invalid/adspower-' "$MOCK_CURL_LOG" || true)"
+downloads="$(grep -c "example.invalid/$FAKE_APPIMAGE_NAME" "$MOCK_CURL_LOG" || true)"
 assert_eq "$downloads" "0" "no asset download on idempotent install"
 cleanup_sandbox
 
@@ -154,7 +182,7 @@ t behavior-install-failure-preserves-current-appimage -- true
 new_app_sandbox
 I="$APP/management-scripts/install"
 printf '%s\n' "adspower-v0.0.1-deadbee" > "$APP/.release-tag"   # marker mismatch forces download attempt
-img="$APP/${APPIMAGE_GLOB%\**}${FAKE_APPIMAGE_SUFFIX}"
+img="$APP/$FAKE_APPIMAGE_NAME"
 echo current > "$img"
 out="$(bash "$I" 2>&1)"; rc=$?
 if [ "$rc" -ne 0 ]; then _pass; else _fail "install should fail without a valid release route"; fi

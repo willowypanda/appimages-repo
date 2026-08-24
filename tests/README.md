@@ -9,11 +9,11 @@ fails the test.
 
 ```bash
 tests/run-tests.sh                    # everything
-tests/run-tests.sh manager            # one group: manager|contract|apps-adspower|build
+tests/run-tests.sh manager            # exact group: manager|contract|apps-adspower|build
 KEEP_TEST_TMP=1 tests/run-tests.sh    # keep sandbox dirs for debugging
 ```
 
-The runner refuses to start on a dirty repo and fails if tests polluted it.
+The runner records the initial Git content snapshot (tracked hashes + untracked files) and fails if tests change anything.
 
 ## Layout
 
@@ -38,8 +38,7 @@ tests/
 ```bash
 APP_NAME="wechat"
 SCRIPTS_SUBDIR="wechat/management-scripts"
-APPIMAGE_GLOB='wechat-*.AppImage'
-FAKE_APPIMAGE_SUFFIX='9.9.9-x86_64.AppImage'
+FAKE_APPIMAGE_NAME='wechat-9.9.9-x86_64.AppImage'
 FAKE_RELEASE_TAG="wechat-v9.9.9-0000000"
 APP_DATA_DIRNAME="wechat-appimage"
 SHORTCUT_PREFIX="wechat-appimage-"

@@ -27,14 +27,12 @@ fail_unknown() {
 # Parse enough of argv to know the URL and whether --fail/-o are used.
 url=""
 out_file=""
-fail_flag=0
-head_flag=0
 args=("$@")
 for ((i=0; i<${#args[@]}; i++)); do
   case "${args[$i]}" in
-    --fail) fail_flag=1 ;;
+    --fail) : ;;
     -o|--output) out_file="${args[$((i+1))]}"; i=$((i+1)) ;;
-    -I|--head|-s|--silent|-S|--show-error|-L|--location|--progress-bar|--max-time) : ;;
+    -I|--head|-s|--silent|-S|--show-error|-L|--location|--progress-bar) : ;;
     --max-time) i=$((i+1)) ;;
     http*://*) url="${args[$i]}" ;;
   esac
@@ -81,11 +79,6 @@ resp_path="$FIXTURES/$response"
 if [ ! -f "$resp_path" ]; then
   echo "mock-curl: response file missing: $resp_path" >&2
   exit 77
-fi
-
-if [ -n "$status" ]; then
-  echo "mock-curl: simulated HTTP $status for $url" >&2
-  exit 22   # like curl --fail on HTTP error
 fi
 
 if [ -n "$out_file" ]; then

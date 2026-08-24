@@ -2,7 +2,9 @@
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME=adspower
-DESKTOP_DIR="${HOME}/.local/share/applications"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+DESKTOP_DIR="${DATA_HOME}/applications"
+INSTANCE_ROOT="${DATA_HOME}/${APP_NAME}-appimage/instances"
 PREFIX="${APP_NAME}-appimage-"
 mkdir -p "$DESKTOP_DIR"
 
@@ -11,7 +13,7 @@ list_shortcuts() {
 }
 create_shortcut() {
   local instance="${1:?missing instance name}"
-  case "$instance" in *[!A-Za-z0-9._-]*|'') echo "Invalid instance name" >&2; exit 2 ;; esac
+  case "$instance" in ''|*[!A-Za-z0-9._-]*|[!A-Za-z0-9]*) echo "Invalid instance name" >&2; exit 2 ;; esac
   local file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
   if [ -e "$file" ]; then echo "Shortcut already exists: $file"; return 0; fi
   # Absolute path: desktop environments may not include ~/.local/bin in PATH.
@@ -32,14 +34,14 @@ EOF
 }
 delete_shortcut() {
   local instance="${1:?missing instance name}"
-  case "$instance" in *[!A-Za-z0-9._-]*|'') echo "Invalid instance name" >&2; exit 2 ;; esac
+  case "$instance" in ''|*[!A-Za-z0-9._-]*|[!A-Za-z0-9]*) echo "Invalid instance name" >&2; exit 2 ;; esac
   local file="$DESKTOP_DIR/${PREFIX}${instance}.desktop"
   if [ ! -e "$file" ]; then echo "Shortcut does not exist: $file"; return 0; fi
   rm -f "$file"; echo "Deleted $file"
 }
 sync_shortcuts() {
   local instances existing instance
-  mapfile -t instances < <(find "${HOME}/.local/share/${APP_NAME}-appimage/instances" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
+  mapfile -t instances < <(find "$INSTANCE_ROOT" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
   for instance in "${instances[@]}"; do
     [ -e "$DESKTOP_DIR/${PREFIX}${instance}.desktop" ] || create_shortcut "$instance"
   done

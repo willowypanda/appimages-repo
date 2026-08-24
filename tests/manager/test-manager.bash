@@ -157,20 +157,9 @@ cleanup_sandbox
 
 # --- self-update ------------------------------------------------------------
 
-setup_local_repo_server() {
-  # Serve fixture manager script from a file:// style route via mock curl.
-  export MOCK_CURL_LOG="$SANDBOX/curl.log"
-}
-fixture_manager_ok() {
-  MOCK_FIXTURES="${MOCK_FIXTURES:-$TESTS_DIR/fixtures/mock-curl}"
-  mkdir -p "$MOCK_FIXTURES"
-  printf '#!/usr/bin/env bash\necho manager-v2\n' > "$MOCK_FIXTURES/manager-new"
-}
-
 t self-update-success -- true
 new_case
-mkdir -p "$SANDBOX_HOME/.local/bin" "$TESTS_DIR/fixtures/mock-curl"
-export MOCK_FIXTURES="$TESTS_DIR/fixtures/mock-curl"
+mkdir -p "$SANDBOX_HOME/.local/bin"
 printf '#!/usr/bin/env bash\necho manager-v2\n' > "$MOCK_FIXTURES/manager-new"
 cat > "$MOCK_FIXTURES/routes" <<EOF
 raw.githubusercontent.com/willowypanda/appimages-repo/main/custom-appimage-manager	manager-new
@@ -188,8 +177,7 @@ cleanup_sandbox
 
 t self-update-http-failure-preserves-old-binary-and-no-tmp-leftover -- true
 new_case
-mkdir -p "$SANDBOX_HOME/.local/bin" "$TESTS_DIR/fixtures/mock-curl"
-export MOCK_FIXTURES="$TESTS_DIR/fixtures/mock-curl"
+mkdir -p "$SANDBOX_HOME/.local/bin"
 : > "$MOCK_FIXTURES/empty"
 cat > "$MOCK_FIXTURES/routes" <<EOF
 custom-appimage-manager	status:404:empty

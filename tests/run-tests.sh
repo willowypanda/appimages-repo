@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test entry point.
 #
-#   tests/run-tests.sh [group|test-name ...]
+#   tests/run-tests.sh [group ...]
 #
 # Groups: manager contract apps-adspower build
 # Environment:
@@ -14,11 +14,23 @@ REPO_DIR="$(cd "$TESTS_DIR/.." && pwd)"
 export MOCK_FIXTURES="${MOCK_FIXTURES:-$TESTS_DIR/fixtures/mock-curl}"
 
 FILTERS=("$@")
+VALID_GROUPS=(manager contract apps-adspower build)
+for requested in "${FILTERS[@]}"; do
+  valid=0
+  for group in "${VALID_GROUPS[@]}"; do
+    [ "$requested" = "$group" ] && valid=1
+  done
+  if [ "$valid" -ne 1 ]; then
+    echo "*** ERROR: unknown test group: $requested" >&2
+    exit 2
+  fi
+done
+
 want() {
   [ "${#FILTERS[@]}" -eq 0 ] && return 0
   local f
   for f in "${FILTERS[@]}"; do
-    [[ "$1" == *"$f"* ]] && return 0
+    [ "$1" = "$f" ] && return 0
   done
   return 1
 }
@@ -36,22 +48,29 @@ run_file() { # run_file <label> <file>
 
 OVERALL_FAIL=0
 
-# Repo must be clean before and after: tests must never modify it.
-dirty() { [ -n "$(git -C "$REPO_DIR" status --porcelain --untracked-files=normal)" ]; }
-if dirty; then
-  echo "*** ERROR: repo is dirty before running tests; commit or stash first." >&2
-  git -C "$REPO_DIR" status --porcelain >&2
-  exit 2
-fi
+# Tests may run while code is being developed. Snapshot the full content
+# state (tracked hashes + untracked paths + untracked hashes) and require an
+# identical snapshot afterwards; porcelain alone cannot detect content edits
+# to files that were already modified before the run.
+repo_snapshot() {
+  (
+    cd "$REPO_DIR"
+    git status --porcelain=v1 --untracked-files=all
+    git ls-files -z | sort -z | xargs -0 sha256sum 2>/dev/null || true
+    git ls-files -o --exclude-standard -z | sort -z | xargs -0 sha256sum 2>/dev/null || true
+  )
+}
+BASELINE_SNAPSHOT="$(repo_snapshot)"
 
 run_file manager      "$TESTS_DIR/manager/test-manager.bash"
 run_file contract     "$TESTS_DIR/contract/test-contract.bash"
 run_file apps-adspower "$TESTS_DIR/apps/adspower/run.bash"
 run_file build        "$TESTS_DIR/build/test-build.bash"
 
-if dirty; then
-  echo "*** FAIL: tests polluted the repository:" >&2
-  git -C "$REPO_DIR" status --porcelain >&2
+FINAL_SNAPSHOT="$(repo_snapshot)"
+if [ "$FINAL_SNAPSHOT" != "$BASELINE_SNAPSHOT" ]; then
+  echo "*** FAIL: tests polluted the repository (status or content changed):" >&2
+  diff -u <(printf '%s\n' "$BASELINE_SNAPSHOT") <(printf '%s\n' "$FINAL_SNAPSHOT") >&2 || true
   OVERALL_FAIL=1
 fi
 

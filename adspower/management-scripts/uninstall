@@ -8,8 +8,9 @@ if [ -n "$APPIMAGE" ]; then
 else
   echo "AdsPower AppImage is not installed; removing management files anyway."
 fi
-find "$HOME/.local/share/applications" -maxdepth 1 -type f -name 'adspower-appimage-*.desktop' -delete 2>/dev/null || true
-INSTANCE_DIR="${HOME}/.local/share/${APP_NAME}-appimage"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+find "$DATA_HOME/applications" -maxdepth 1 -type f -name 'adspower-appimage-*.desktop' -delete 2>/dev/null || true
+INSTANCE_DIR="${DATA_HOME}/${APP_NAME}-appimage"
 if [ -d "$INSTANCE_DIR" ]; then
   printf 'Delete instance data at %s? [y/N] ' "$INSTANCE_DIR" >&2
   read -r answer || answer=n

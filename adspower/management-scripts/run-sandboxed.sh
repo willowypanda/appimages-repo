@@ -24,7 +24,9 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -n "$INSTANCE" ] || { echo "--instance is required" >&2; exit 2; }
-case "$INSTANCE" in *[!A-Za-z0-9._-]*|'') echo "Invalid instance name" >&2; exit 2 ;; esac
+case "$INSTANCE" in
+  ''|*[!A-Za-z0-9._-]*|[!A-Za-z0-9]*) echo "Invalid instance name" >&2; exit 2 ;;
+esac
 if [ -z "$APPIMAGE" ]; then
   APPIMAGE="$(find "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" -maxdepth 1 -type f -name 'adspower-*.AppImage' -print -quit)"
 fi
