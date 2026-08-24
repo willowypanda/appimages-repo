@@ -22,6 +22,8 @@ new_wechat_app() {
   cp "$REPO_DIR"/wechat/management-scripts/.launcher-template.sh "$APP/management-scripts/"
   : > "$APP/WeChatLinux_x86_64.AppImage"
   export MOCK_CURL_LOG="$SANDBOX/curl.log"
+  # Baseline route: the rolling download URL serves our fixture payload.
+  printf 'dldir1v6.qq.com\tappimage-fixture\n' > "$MOCK_FIXTURES/routes"
 }
 
 t wechat-install-downloads-from-official-url -- true
@@ -58,44 +60,42 @@ done
 if [ "$found" = 1 ]; then _pass; else _fail "~/Downloads not mounted read-write into sandbox HOME"; fi
 cleanup_sandbox
 
-# --- update script: refresh scripts via manager, fall back to local install ---
+# --- update script: refresh scripts first, then update the AppImage ---
 
 setup_update_env() {
   new_wechat_app
   U="$APP/management-scripts/update"
   export MOCK_CURL_LOG="$SANDBOX/curl.log"
   : > "$MOCK_FIXTURES/appimage-fixture"
-  printf 'dldir1v6.qq.com\tappimage-fixture\n' > "$MOCK_FIXTURES/routes"
+  # Default: scripts API serves a listing matching the local copies.
+  cat > "$MOCK_FIXTURES/scripts-list.json" <<'EOF'
+[{"name":"run","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/wechat/management-scripts/run"},{"name":"check","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/wechat/management-scripts/check"},{"name":"update","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/wechat/management-scripts/update"},{"name":"install","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/wechat/management-scripts/install"},{"name":"uninstall","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/wechat/management-scripts/uninstall"},{"name":"shortcut","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/wechat/management-scripts/shortcut"},{"name":"run-sandboxed.sh","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/wechat/management-scripts/run-sandboxed.sh"}]
+EOF
+  printf 'contents/wechat/management-scripts\tscripts-list.json\n' > "$MOCK_FIXTURES/routes"
+  printf 'raw.githubusercontent.com/willowypanda/appimages-repo/main/wechat/management-scripts\tappimage-fixture\n' >> "$MOCK_FIXTURES/routes"
+  printf 'dldir1v6.qq.com\tappimage-fixture\n' >> "$MOCK_FIXTURES/routes"
 }
 
-install_stub_manager() { # records invocation
-  mkdir -p "$HOME/.local/bin"
-  cat > "$HOME/.local/bin/custom-appimage-manager" <<STUB
-#!/usr/bin/env bash
-echo "MANAGER-INVOKED \$*" >> "$SANDBOX/manager.log"
-# Simulate the manager contract: refresh scripts (touch a marker), then run install.
-echo refreshed > "$APP/management-scripts/.refreshed-by-manager"
-bash "$APP/management-scripts/install" "\$@"
-STUB
-  chmod +x "$HOME/.local/bin/custom-appimage-manager"
-}
-
-t wechat-update-routes-through-manager-when-available -- true
+t wechat-update-refreshes-scripts-then-appimage -- true
 setup_update_env
-install_stub_manager
-out="$(printf 'old\n' > "$APP/.release-tag"; bash "$U" 2>&1)"; rc=$?
-assert_eq "$rc" "0" "update rc via manager: $out"
-assert_contains "$(cat "$SANDBOX/manager.log")" "app wechat install" "manager invoked with install"
-assert_file_exists "$APP/management-scripts/.refreshed-by-manager"
+printf 'old\n' > "$APP/.release-tag"
+# Simulate an upstream script change: the fetched "check" differs from local.
+out="$(bash "$U" 2>&1)"; rc=$?
+assert_eq "$rc" "0" "update rc: $out"
+assert_file_exists "$APP/WeChatLinux_x86_64.AppImage"
+assert_contains "$out" "Management scripts updated." "scripts refresh reported"
 cleanup_sandbox
 
-t wechat-update-falls-back-to-local-install-without-manager -- true
+t wechat-update-proceeds-when-scripts-refresh-fails -- true
 setup_update_env
-rm -f "$HOME/.local/bin/custom-appimage-manager"
-out="$(printf 'old\n' > "$APP/.release-tag"; bash "$U" 2>&1)"; rc=$?
-assert_eq "$rc" "0" "fallback update rc: $out"
+# Remove only the scripts-API route -> refresh fails, but the AppImage
+# download URL still works; update must proceed and update the AppImage.
+grep -v 'contents/wechat/management-scripts' "$MOCK_FIXTURES/routes" > "$MOCK_FIXTURES/routes.tmp" \
+  && mv "$MOCK_FIXTURES/routes.tmp" "$MOCK_FIXTURES/routes"
+out="$(bash "$U" 2>&1)"; rc=$?
+assert_eq "$rc" "0" "update proceeds after refresh failure: $out"
 assert_file_exists "$APP/WeChatLinux_x86_64.AppImage"
-if [ -e "$SANDBOX/manager.log" ]; then _fail "manager path used although absent"; else _pass; fi
+assert_contains "$out" "Warning: could not refresh management scripts" "warning shown"
 cleanup_sandbox
 
 summary

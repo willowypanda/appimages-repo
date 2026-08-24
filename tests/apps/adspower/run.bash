@@ -73,4 +73,36 @@ bash "$APP/management-scripts/shortcut" sync >/dev/null 2>&1
 assert_file_exists "$XDG_DATA_HOME/applications/adspower-appimage-work.desktop"
 cleanup_sandbox
 
+# --- update script: refresh scripts first, then update the AppImage ---
+
+setup_adspower_update_env() {
+  mk_sandbox; use_sandbox_env
+  APP="$SANDBOX_HOME/CustomAppimages/adspower"
+  mkdir -p "$APP/management-scripts" "$APP/.release-tag.d"
+  cp -a "$REPO_DIR"/adspower/management-scripts/. "$APP/management-scripts/"
+  : > "$APP/adspower-9.9.9-x86_64.AppImage"
+  printf 'adspower-v9.9.9-0000000\n' > "$APP/.release-tag"
+  export MOCK_CURL_LOG="$SANDBOX/curl.log"
+  cat > "$MOCK_FIXTURES/scripts-list-adspower.json" <<'EOF'
+[{"name":"run","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/adspower/management-scripts/run"},{"name":"check","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/adspower/management-scripts/check"},{"name":"update","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/adspower/management-scripts/update"},{"name":"install","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/adspower/management-scripts/install"},{"name":"uninstall","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/adspower/management-scripts/uninstall"},{"name":"shortcut","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/adspower/management-scripts/shortcut"},{"name":"run-sandboxed.sh","type":"file","download_url":"https://raw.githubusercontent.com/willowypanda/appimages-repo/main/adspower/management-scripts/run-sandboxed.sh"}]
+EOF
+  printf 'contents/adspower/management-scripts\tscripts-list-adspower.json\n' > "$MOCK_FIXTURES/routes"
+  printf 'raw.githubusercontent.com/willowypanda/appimages-repo/main/adspower/management-scripts\tempty\n' >> "$MOCK_FIXTURES/routes"
+}
+
+t adspower-update-refreshes-scripts-then-appimage -- true
+setup_adspower_update_env
+out="$(bash "$APP/management-scripts/update" 2>&1)"; rc=$?
+assert_eq "$rc" "0" "update rc: $out"
+assert_contains "$out" "Management scripts updated." "scripts refresh reported"
+cleanup_sandbox
+
+t adspower-update-proceeds-when-scripts-refresh-fails -- true
+setup_adspower_update_env
+rm -f "$MOCK_FIXTURES/routes"   # API unreachable -> refresh fails; install also fails, but update must not crash before warning
+out="$(bash "$APP/management-scripts/update" 2>&1)"; rc=$?
+if [ "$rc" -ne 0 ]; then _pass; else _fail "install without routes should fail"; fi
+assert_contains "$out" "Warning: could not refresh management scripts" "warning shown"
+cleanup_sandbox
+
 summary

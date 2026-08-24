@@ -76,6 +76,10 @@ custom-appimage-manager app wechat check    # check for updates
 custom-appimage-manager app wechat update   # update, preserving instances
 ```
 
+Like AdsPower, `update` first refreshes the management scripts from this
+repository (continuing with local copies on failure), then updates the
+AppImage.
+
 Sandboxing matches AdsPower: bubblewrap with an explicit allowlist, per-
 instance HOME under `~/.local/share/wechat-appimage/instances/`, and the
 host `~/Downloads` mounted read-write as the instance's `~/Downloads`.
@@ -135,7 +139,17 @@ Update the AppImage and refresh all management scripts:
 custom-appimage-manager app adspower update
 ```
 
-The update operation is idempotent.
+The update operation is idempotent. `update` works in two phases:
+
+1. **Refresh management scripts** from this repository (fetched into a
+   staging directory, validated, then swapped in atomically). If the
+   refresh fails — e.g. no network — a warning is printed and the update
+   continues with the existing local scripts.
+2. **Update the AppImage** using the (now current) install script, which is
+   idempotent and skips the download when the installed version already
+   matches the latest release.
+
+Instance data is never touched by either phase.
 
 Uninstall the local AppImage and app directory contents:
 
