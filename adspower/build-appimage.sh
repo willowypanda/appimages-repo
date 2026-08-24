@@ -28,7 +28,6 @@ APPDIR="${PROJECT_DIR}/AppDir"
 EXTRACT="${PROJECT_DIR}/.deb-extracted"
 TOOL="${PROJECT_DIR}/appimagetool-x86_64.AppImage"
 OUTPUT="${PROJECT_DIR}/adspower-${VERSION}-x86_64.AppImage"
-OUTPUT_NAME="$(basename "$OUTPUT")"
 
 if [ ! -x "$TOOL" ]; then
   curl --fail --location --progress-bar \
@@ -83,13 +82,24 @@ for s in 16 24 32 48 64 128 256 512; do
 done
 
 rm -f "$OUTPUT"
+# Remove any output the tool itself may have produced in a previous run
+# (appimagetool names it after the desktop entry, e.g. AdsPower-x86_64).
+rm -f "$PROJECT_DIR/AdsPower-x86_64.AppImage"
 cd "$PROJECT_DIR"
 if ! "$TOOL" "AppDir"; then
   "$TOOL" --appimage-extract-and-run "AppDir"
 fi
 
-built="$(find "$PROJECT_DIR" -maxdepth 1 -type f -name "$OUTPUT_NAME" -print -quit)"
-[ -n "$built" ] || { echo "AppImage output was not found" >&2; exit 1; }
-[ "$built" = "$OUTPUT" ] || mv "$built" "$OUTPUT"
+# appimagetool derives its own output name from the desktop entry (here:
+# "AdsPower-x86_64.AppImage"), which is not the versioned name we publish.
+TOOL_OUTPUT="$PROJECT_DIR/AdsPower-x86_64.AppImage"
+if [ -f "$TOOL_OUTPUT" ]; then
+  mv "$TOOL_OUTPUT" "$OUTPUT"
+elif [ -f "$OUTPUT" ]; then
+  : # tool already wrote the expected name directly
+else
+  echo "AppImage output was not found" >&2
+  exit 1
+fi
 echo "[+] Created $OUTPUT"
 printf '{"version":"%s","appimage":"%s"}\n' "$VERSION" "$OUTPUT"

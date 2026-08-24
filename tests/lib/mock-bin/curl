@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Mock curl: serves fixture data for known URLs; FAILS for everything else so
+# that unexpected network access breaks the test instead of hitting the web.
+#
+# Fixtures live under $MOCK_FIXTURES (default: tests/fixtures/mock-curl).
+# Mapping is URL-substring → response file, defined in map file "routes".
+# Route file format: <url-substring><TAB><response-file-relative-path>
+#
+# Special routes:
+#   status:<N>  in the response-file name prefix makes curl exit with that
+#               HTTP failure semantics (exit 22 on --fail).
+set -uo pipefail
+
+FIXTURES="${MOCK_FIXTURES:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../fixtures/mock-curl" 2>/dev/null && pwd)}"
+[ -n "$FIXTURES" ] || { echo "mock-curl: MOCK_FIXTURES not set" >&2; exit 77; }
+LOG="${MOCK_CURL_LOG:-}"
+ROUTES="$FIXTURES/routes"
+
+log_call() { [ -n "$LOG" ] && printf '%s\n' "$*" >> "$LOG"; return 0; }
+
+fail_unknown() {
+  log_call "UNKNOWN $*"
+  echo "mock-curl: no route for: $*" >&2
+  exit 77
+}
+
+# Parse enough of argv to know the URL and whether --fail/-o are used.
+url=""
+out_file=""
+fail_flag=0
+head_flag=0
+args=("$@")
+for ((i=0; i<${#args[@]}; i++)); do
+  case "${args[$i]}" in
+    --fail) fail_flag=1 ;;
+    -o|--output) out_file="${args[$((i+1))]}"; i=$((i+1)) ;;
+    -I|--head|-s|--silent|-S|--show-error|-L|--location|--progress-bar|--max-time) : ;;
+    --max-time) i=$((i+1)) ;;
+    http*://*) url="${args[$i]}" ;;
+  esac
+done
+[ -n "$url" ] || fail_unknown "$*"
+log_call "GET $url"
+
+[ -f "$ROUTES" ] || { echo "mock-curl: routes file missing: $ROUTES" >&2; exit 77; }
+
+response=""
+while IFS=$'\t' read -r pattern file; do
+  [ -n "${pattern:-}" ] || continue
+  case "$pattern" in \#*) continue ;; esac
+  case "$url" in
+    *"$pattern"*)
+      # Later rules win? No — first match wins, most-specific first.
+      response="$file"; break ;;
+  esac
+done < "$ROUTES"
+
+if [ -z "$response" ]; then fail_unknown "$url"; fi
+
+status=""
+case "$response" in
+  status:*)
+    status="${response#status:}"
+    status="${status%%:*}"
+    # Strip the leading colon-delimited status prefix, e.g. "status:404:empty"
+    # -> "empty"; also tolerate "status:404" with no response file.
+    rest="${response#*:}"          # "404:empty"
+    response="${rest#*:}"          # "empty"
+    [ "$response" = "$rest" ] && response=""   # no file part present
+    ;;
+esac
+
+if [ -n "$status" ]; then
+  echo "mock-curl: simulated HTTP $status for $url" >&2
+  exit 22   # like curl --fail on HTTP error
+fi
+
+[ -n "$response" ] || { echo "mock-curl: empty route for $url" >&2; exit 77; }
+
+resp_path="$FIXTURES/$response"
+if [ ! -f "$resp_path" ]; then
+  echo "mock-curl: response file missing: $resp_path" >&2
+  exit 77
+fi
+
+if [ -n "$status" ]; then
+  echo "mock-curl: simulated HTTP $status for $url" >&2
+  exit 22   # like curl --fail on HTTP error
+fi
+
+if [ -n "$out_file" ]; then
+  cp "$resp_path" "$out_file"
+else
+  cat "$resp_path"
+fi
+exit 0

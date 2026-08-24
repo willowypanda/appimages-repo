@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Mock bwrap: records its full argv to $MOCK_BWRAP_LOG (default:
+# "$SANDBOX/bwrap-argv.log") and optionally simulates running the target.
+set -uo pipefail
+
+LOG="${MOCK_BWRAP_LOG:-bwrap-argv.log}"
+printf '%s\0' "$@" > "$LOG"
+
+# If MOCK_BWRAP_RUN_TARGET is set, "run" the sandboxed target: the target is
+# the AppImage path (e.g. /opt/adspower.AppImage) invoked with
+# --appimage-extract-and-run. We simulate AppImage extraction by creating a
+# marker file inside $HOME so tests can verify HOME was writable and chdir'd.
+if [ -n "${MOCK_BWRAP_RUN_TARGET:-}" ]; then
+  if [ -n "${HOME:-}" ] && [ -d "$HOME" ]; then
+    mkdir -p "$HOME"
+    : > "$HOME/.mock-bwrap-ran"
+  fi
+  exit 0
+fi
+exit 0

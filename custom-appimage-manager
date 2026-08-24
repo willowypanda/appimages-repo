@@ -27,7 +27,7 @@ EOF
 }
 
 need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Error: required command not found: $1" >&2; exit 1; }; }
-valid_app() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]]; }
+valid_app() { [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && "$1" != "." && "$1" != ".." ]]; }
 app_dir() { printf '%s/%s\n' "$BASE_DIR" "$1"; }
 
 fetch_management_scripts() {
@@ -66,12 +66,15 @@ self_update() {
   local tmp
   mkdir -p "$(dirname "$INSTALL_PATH")"
   # Same-directory temp file: mv becomes an atomic rename(2) within one
-  # filesystem, and the EXIT trap cleans up on every failure path.
+  # filesystem. The EXIT trap must reference the path via a global (local
+  # variables are out of scope when the EXIT trap fires after set -e aborts).
   tmp="$(mktemp "$(dirname "$INSTALL_PATH")/.custom-appimage-manager.tmp.XXXXXX")"
-  trap 'rm -f "$tmp"' EXIT
+  SELF_UPDATE_TMP="$tmp"
+  trap 'rm -f "$SELF_UPDATE_TMP"' EXIT
   curl --fail --location --silent --show-error "${REPO_RAW}/custom-appimage-manager" -o "$tmp"
   chmod +x "$tmp"
   mv "$tmp" "$INSTALL_PATH"
+  SELF_UPDATE_TMP=""
   trap - EXIT
   echo "Updated $INSTALL_PATH from ${REPO_OWNER}/${REPO_NAME}@${BRANCH}"
 }

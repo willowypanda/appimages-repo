@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Mock dpkg-deb -x: creates a minimal extracted tree resembling the real
+# AdsPower deb (opt/AdsPower Global/<binary>, icons) without a real deb.
+set -euo pipefail
+# usage: dpkg-deb -x <deb> <dir>
+[ "${1:-}" = "-x" ] || { echo "mock-dpkg-deb: only -x supported" >&2; exit 2; }
+deb="$2"; dest="$3"
+mkdir -p "$dest/opt/AdsPower Global" "$dest/usr/share/icons/hicolor/256x256/apps"
+printf '#!/bin/sh\necho adspower-binary-ran\n' > "$dest/opt/AdsPower Global/adspower_global"
+chmod +x "$dest/opt/AdsPower Global/adspower_global"
+printf 'PNG' > "$dest/usr/share/icons/hicolor/256x256/apps/adspower_global.png"
+exit 0
