@@ -30,10 +30,11 @@ TOOL="${PROJECT_DIR}/appimagetool-x86_64.AppImage"
 OUTPUT="${PROJECT_DIR}/adspower-${VERSION}-x86_64.AppImage"
 
 if [ ! -x "$TOOL" ]; then
-  curl --fail --location --progress-bar \
-    https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
-    -o "$TOOL"
-  chmod +x "$TOOL"
+  # Shared provisioning with a refresh cycle (see tests/lib/ensure-appimagetool.sh).
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  # shellcheck source=/dev/null
+  . "$SCRIPT_DIR/_ensure-appimagetool.sh"
+  ensure_appimagetool "$TOOL"
 fi
 
 rm -rf "$EXTRACT" "$APPDIR"

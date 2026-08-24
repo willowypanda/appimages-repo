@@ -5,3 +5,12 @@ adspower/deb_info.json
 adspower/appimagetool-*.AppImage
 adspower/*.AppImage
 adspower/*.sha256
+
+wechat/.appimagetool-*.AppImage
+wechat/*.AppImage
+
+baidupan/.appimagetool-*.AppImage
+baidupan/.extract.*/
+baidupan/*.AppImage
+baidupan/*.sha256
+baidupan/.download.*

@@ -58,18 +58,13 @@ for s in 16 32 48 64 128 256; do
   [ -n "$icon" ] && { mkdir -p "$appdir/usr/share/icons/hicolor/${s}x${s}/apps"; cp "$icon" "$appdir/usr/share/icons/hicolor/${s}x${s}/apps/baidunetdisk.png"; }
 done
 
-# Package with appimagetool (downloaded on first use).
+# Package with appimagetool (shared, auto-refreshed via ensure-appimagetool).
 TOOL="$APP_DIR/.appimagetool-x86_64.AppImage"
-if [ ! -x "$TOOL" ]; then
-  curl --fail --location --progress-bar \
-    https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
-    -o "$TOOL"
-  chmod +x "$TOOL"
-fi
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/_ensure-appimagetool.sh"
+ensure_appimagetool "$TOOL"
 rm -f "$TARGET" "$APP_DIR/BaiduNetDisk-x86_64.AppImage"
-if ! "$TOOL" "$appdir"; then
-  "$TOOL" --appimage-extract-and-run "$appdir"
-fi
+run_appimagetool "$TOOL" "$appdir"
 tool_output="$extract/AppDir/../BaiduNetDisk-x86_64.AppImage"
 [ -f "$tool_output" ] || tool_output="$APP_DIR/BaiduNetDisk-x86_64.AppImage"
 mv "$tool_output" "$TARGET"
