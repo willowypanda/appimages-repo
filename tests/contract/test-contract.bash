@@ -196,6 +196,18 @@ if [ -n "${RELEASE_API_ROUTE:-}" ]; then
 [{"tag_name":"$FAKE_RELEASE_TAG","assets":[{"name":"$FAKE_APPIMAGE_NAME","browser_download_url":"https://example.invalid/$FAKE_APPIMAGE_NAME"}]}]
 EOF
   printf '%s	releases-latest.json\n' "$RELEASE_API_ROUTE" > "$MOCK_FIXTURES/routes"
+elif [ -n "${SIGNED_URL_CONFIG:-}" ]; then
+  # Signed-URL apps (tencentqq): live pcConfig.json carries version + URL.
+  cat > "$MOCK_FIXTURES/pcConfig.json" <<EOF
+{"Linux":{"version":"$FAKE_RELEASE_TAG","x64DownloadUrl":{"appimage":"https://qqdl.gtimg.cn/signed/$FAKE_APPIMAGE_NAME"}}}
+EOF
+  printf '%s	pcConfig.json\n' "$SIGNED_URL_CONFIG" > "$MOCK_FIXTURES/routes"
+  printf 'im.qq.com	sign-response.json\n' >> "$MOCK_FIXTURES/routes"
+  : > "$MOCK_FIXTURES/appimage-fixture"
+  printf 'qqdl.gtimg.cn	appimage-fixture\n' >> "$MOCK_FIXTURES/routes"
+  cat > "$MOCK_FIXTURES/sign-response.json" <<EOF
+{"data":{"url":"https://qqdl.gtimg.cn/signed/$FAKE_APPIMAGE_NAME?sign=abc"}}
+EOF
 else
   # Rolling-URL apps (wechat): HEAD metadata identifies the current file.
   : > "$MOCK_FIXTURES/appimage-fixture"
@@ -205,7 +217,7 @@ fi
 out="$(bash "$I" 2>&1)"; rc=$?
 assert_eq "$rc" "0" "idempotent install rc: $out"
 assert_contains "$out" "already installed" "idempotent message"
-downloads="$(grep -c "GET https://dldir1v6" "$MOCK_CURL_LOG" || true)"
+downloads="$(grep -c "GET https://dldir1v6\|GET https://qqdl.gtimg.cn/signed" "$MOCK_CURL_LOG" || true)"
 assert_eq "$downloads" "0" "no asset download on idempotent install"
 cleanup_sandbox
 
@@ -215,6 +227,10 @@ I="$APP/management-scripts/install"
 if [ -n "${RELEASE_API_ROUTE:-}" ]; then
   # Release-API app: marker mismatch + no matching asset route -> failure.
   printf '%s\n' "adspower-v0.0.1-deadbee" > "$APP/.release-tag"
+elif [ -n "${SIGNED_URL_CONFIG:-}" ]; then
+  # Signed-URL app: marker mismatch + no config route -> refresh fails.
+  printf '%s\n' "0.0.1-stale" > "$APP/.release-tag"
+  rm -f "$MOCK_FIXTURES/routes"   # pcConfig unreachable -> install fails early
 else
   # Rolling-URL app: HEAD metadata differs from local marker AND the download
   # route is removed so the fetch fails; the old AppImage must survive.

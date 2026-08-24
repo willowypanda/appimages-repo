@@ -8,6 +8,7 @@ Current application:
 adspower/
 wechat/
 baidunetdisk/
+tencentqq/
 ```
 
 ## Install the common manager
@@ -102,6 +103,27 @@ AppImage.
 Sandboxing matches AdsPower: bubblewrap with an explicit allowlist, per-
 instance HOME under `~/.local/share/wechat-appimage/instances/`, and the
 host `~/Downloads` mounted read-write as the instance's `~/Downloads`.
+
+## Install and manage Tencent QQ
+
+Tencent QQ NT ships an official Linux AppImage, but the download URL is
+behind a signed-URL gate: the live config at
+`qq-web.cdn-go.cn/im.qq.com_new/latest/rainbow/pcConfig.json` provides the
+version and unsigned URL, and an RPC on im.qq.com exchanges it for a
+time-limited signed link. `install` handles this flow automatically:
+
+```bash
+custom-appimage-manager app tencentqq install   # fetch + download
+custom-appimage-manager app tencentqq check     # check for newer version
+custom-appimage-manager app tencentqq update    # refresh scripts + update
+custom-appimage-manager app tencentqq run work  # named instance
+```
+
+Like the other apps, `update` first refreshes the management scripts from
+this repository (continuing with local copies on failure), then updates the
+AppImage. Sandboxing matches: bubblewrap allowlist, per-instance HOME under
+`~/.local/share/tencentqq-appimage/instances/`, host `~/Downloads` mounted
+read-write, and a per-instance fake machine-id.
 
 ## Install and manage AdsPower
 

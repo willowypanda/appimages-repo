@@ -14,7 +14,7 @@ REPO_DIR="$(cd "$TESTS_DIR/.." && pwd)"
 export MOCK_FIXTURES="${MOCK_FIXTURES:-$TESTS_DIR/fixtures/mock-curl}"
 
 FILTERS=("$@")
-VALID_GROUPS=(manager contract apps-adspower apps-wechat apps-baidunetdisk build)
+VALID_GROUPS=(manager contract apps-adspower apps-wechat apps-baidunetdisk apps-tencentqq build)
 for requested in "${FILTERS[@]}"; do
   valid=0
   for group in "${VALID_GROUPS[@]}"; do
@@ -67,6 +67,7 @@ run_file contract     "$TESTS_DIR/contract/test-contract.bash"
 run_file apps-adspower "$TESTS_DIR/apps/adspower/run.bash"
 run_file apps-wechat  "$TESTS_DIR/apps/wechat/run.bash"
 run_file apps-baidunetdisk "$TESTS_DIR/apps/baidunetdisk/run.bash"
+run_file apps-tencentqq "$TESTS_DIR/apps/tencentqq/run.bash"
 run_file build        "$TESTS_DIR/build/test-build.bash"
 
 FINAL_SNAPSHOT="$(repo_snapshot)"

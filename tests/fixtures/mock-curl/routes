@@ -1,0 +1,2 @@
+# mock-curl routes: <url-substring><TAB><response-file>
+releases?per_page	releases-latest.json

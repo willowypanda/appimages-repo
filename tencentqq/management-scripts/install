@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Install (or update) the Tencent QQ Linux AppImage. Idempotent via marker.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_common.sh
+. "$SCRIPT_DIR/_common.sh"
+mkdir -p "$APP_DIR"
+
+REMOTE_VER="$(latest_release | awk '{print $1}')"
+if [ -f "$TARGET" ] && [ "$(cat "$MARKER" 2>/dev/null || true)" = "$REMOTE_VER" ]; then
+  chmod +x "$TARGET"
+  echo "tencentqq is already installed: $TARGET ($REMOTE_VER)"
+  exit 0
+fi
+
+tmp="$(mktemp "$APP_DIR/.download.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+download_appimage "$tmp"
+find "$APP_DIR" -maxdepth 1 -type f -name 'QQ-*.AppImage' ! -path "$TARGET" -delete
+mv "$tmp" "$TARGET"
+trap - EXIT
+printf '%s\n' "$REMOTE_VER" > "$MARKER"
+echo "Installed tencentqq: $TARGET ($REMOTE_VER)"

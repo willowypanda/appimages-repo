@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Uninstall Tencent QQ; asks before removing instance data.
+set -euo pipefail
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_NAME="tencentqq"
+APPIMAGE="$(find "$APP_DIR" -maxdepth 1 -type f -name 'QQ-*-x86_64.AppImage' -print -quit || true)"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+if [ -n "$APPIMAGE" ]; then
+  rm -f "$APPIMAGE" "$APP_DIR/.release-tag"
+else
+  echo "Tencent QQ AppImage is not installed; removing management files anyway."
+fi
+find "$DATA_HOME/applications" -maxdepth 1 -type f -name "${APP_NAME}-appimage-*.desktop" -delete 2>/dev/null || true
+INSTANCE_DIR="${DATA_HOME}/${APP_NAME}-appimage"
+if [ -d "$INSTANCE_DIR" ]; then
+  printf 'Delete instance data at %s? [y/N] ' "$INSTANCE_DIR" >&2
+  read -r answer || answer=n
+  case "$answer" in y|Y|yes|YES) rm -rf "$INSTANCE_DIR"; echo "Deleted $INSTANCE_DIR" ;; *) echo "Kept $INSTANCE_DIR" ;; esac
+fi
+rm -rf "$APP_DIR"
+echo "Uninstalled Tencent QQ and removed $APP_DIR"

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Check whether a newer Tencent QQ exists.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_common.sh
+. "$SCRIPT_DIR/_common.sh"
+
+if [ ! -f "$TARGET" ]; then
+  echo "tencentqq is not installed. Use: custom-appimage-manager app tencentqq install"
+  exit 1
+fi
+
+REMOTE_VER="$(latest_release | awk '{print $1}')"
+LOCAL_VER="$(cat "$MARKER" 2>/dev/null || true)"
+if [ "$LOCAL_VER" = "$REMOTE_VER" ]; then
+  echo "tencentqq is up to date ($LOCAL_VER)"
+else
+  echo "Update available: local=${LOCAL_VER:-none}, remote=$REMOTE_VER. Run: custom-appimage-manager app tencentqq update"
+fi

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Update Tencent QQ: 1) refresh management scripts from the repo,
+# 2) then update the AppImage. Instance data preserved.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=_scripts-update.sh
+. "$SCRIPT_DIR/_scripts-update.sh"
+
+update_management_scripts tencentqq "$APP_DIR" || \
+  echo "Warning: could not refresh management scripts; continuing with local copies." >&2
+
+exec "$SCRIPT_DIR/install"
