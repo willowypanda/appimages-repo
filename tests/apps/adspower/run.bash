@@ -18,11 +18,11 @@ t launcher-bwrap-argv-has-explicit-allowlist -- true
 mk_sandbox; use_sandbox_env
 APP="$SANDBOX_HOME/CustomAppimages/adspower"
 mkdir -p "$APP/management-scripts" "$SANDBOX/work"
-cp "$REPO_DIR"/adspower/management-scripts/* "$APP/management-scripts/"
+cp -a "$REPO_DIR"/adspower/management-scripts/. "$APP/management-scripts/"
 : > "$APP/adspower-1.0.0-x86_64.AppImage"
 export MOCK_BWRAP_LOG="$SANDBOX/bwrap.log"
 cd "$SANDBOX/work" && bash "$APP/management-scripts/run" default >/dev/null 2>&1; rc=$?
-[ -f "$MOCK_BWRAP_LOG" ] || { _fail "bwrap not invoked (rc=$rc)"; cleanup_sandbox; return 0; }
+[ -f "$MOCK_BWRAP_LOG" ] || { _fail "bwrap not invoked (rc=$rc)"; cleanup_sandbox; continue; }
 mapfile -d '' -t argv < "$MOCK_BWRAP_LOG"
 has_arg() {
   local wanted="$1" arg
@@ -52,7 +52,7 @@ mk_sandbox; use_sandbox_env
 unset USER
 APP="$SANDBOX_HOME/CustomAppimages/adspower"
 mkdir -p "$APP/management-scripts" "$SANDBOX/work"
-cp "$REPO_DIR"/adspower/management-scripts/* "$APP/management-scripts/"
+cp -a "$REPO_DIR"/adspower/management-scripts/. "$APP/management-scripts/"
 : > "$APP/adspower-1.0.0-x86_64.AppImage"
 export MOCK_BWRAP_LOG="$SANDBOX/bwrap.log"
 cd "$SANDBOX/work" && bash "$APP/management-scripts/run" default >/dev/null 2>&1
@@ -65,7 +65,7 @@ t launcher-and-shortcut-share-xdg-instance-root -- true
 mk_sandbox; use_sandbox_env
 APP="$SANDBOX_HOME/CustomAppimages/adspower"
 mkdir -p "$APP/management-scripts"
-cp "$REPO_DIR"/adspower/management-scripts/* "$APP/management-scripts/"
+cp -a "$REPO_DIR"/adspower/management-scripts/. "$APP/management-scripts/"
 : > "$APP/adspower-1.0.0-x86_64.AppImage"
 export MOCK_BWRAP_LOG="$SANDBOX/bwrap.log"
 bash "$APP/management-scripts/run" work >/dev/null 2>&1

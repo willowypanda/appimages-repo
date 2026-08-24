@@ -18,7 +18,7 @@ new_wechat_app() {
   mk_sandbox; use_sandbox_env
   APP="$SANDBOX_HOME/CustomAppimages/wechat"
   mkdir -p "$APP/management-scripts" "$SANDBOX/bin" "$SANDBOX/work"
-  cp "$REPO_DIR"/wechat/management-scripts/* "$APP/management-scripts/"
+  cp -a "$REPO_DIR"/wechat/management-scripts/. "$APP/management-scripts/"
   cp "$REPO_DIR"/wechat/management-scripts/.launcher-template.sh "$APP/management-scripts/"
   : > "$APP/WeChatLinux_x86_64.AppImage"
   export MOCK_CURL_LOG="$SANDBOX/curl.log"

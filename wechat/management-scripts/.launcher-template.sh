@@ -51,6 +51,15 @@ INSTANCE_HOME="$BASE/$INSTANCE"
 mkdir -p "$INSTANCE_HOME" "$INSTANCE_HOME/Downloads" "$INSTANCE_HOME/Documents"
 chmod 700 "$INSTANCE_HOME"
 
+# Per-instance machine-id: a stable random 32-hex-char ID generated on first
+# run. Prevents apps (Chromium/Electron device identification) from seeing
+# the host machine-id or sharing one across instances.
+MACHINE_ID_FILE="$INSTANCE_HOME/.machine-id"
+if [ ! -s "$MACHINE_ID_FILE" ]; then
+  head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$MACHINE_ID_FILE"
+  chmod 444 "$MACHINE_ID_FILE"
+fi
+
 # bubblewrap is the only supported launcher engine.
 command -v bwrap >/dev/null 2>&1 || { echo "bubblewrap is not installed" >&2; exit 1; }
 XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -89,9 +98,11 @@ cmd=(bwrap --die-with-parent --new-session
   --share-net)
 
 # Minimal files needed for DNS, user identity, TLS and locale handling.
-for f in resolv.conf hosts nsswitch.conf passwd group localtime machine-id; do
+for f in resolv.conf hosts nsswitch.conf passwd group localtime; do
   [ -e "/etc/$f" ] && cmd+=(--ro-bind "/etc/$f" "/etc/$f")
 done
+cmd+=(--ro-bind "$MACHINE_ID_FILE" /etc/machine-id)
+[ -e /var/lib/dbus/machine-id ] && cmd+=(--ro-bind "$MACHINE_ID_FILE" /var/lib/dbus/machine-id)
 for d in ssl/certs ca-certificates fonts fontconfig icons zoneinfo; do
   [ -e "/etc/$d" ] && cmd+=(--ro-bind "/etc/$d" "/etc/$d")
   [ -e "/usr/share/$d" ] && cmd+=(--ro-bind "/usr/share/$d" "/usr/share/$d")

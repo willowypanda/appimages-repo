@@ -81,6 +81,32 @@ if bwrap_has_triple "--setenv" "HOME" "$HOME"; then _pass; else _fail "--setenv 
 if bwrap_has_pair "--chdir" "$HOME"; then _pass; else _fail "--chdir \$HOME missing"; fi
 cleanup_sandbox
 
+t behavior-per-instance-machine-id -- true
+new_app_sandbox
+run_and_get_machine_id() { # instance log_path -> prints bound source path
+  local inst="$1" log="$2"
+  MOCK_BWRAP_LOG="$log" bash "$APP/management-scripts/run" "$inst" >/dev/null 2>&1
+  mapfile -d '' -t a < "$log"
+  local i
+  for ((i=0; i+2<${#a[@]}; i++)); do
+    if [ "${a[$i]}" = "--ro-bind" ] && [ "${a[$((i+2))]}" = "/etc/machine-id" ]; then
+      printf '%s\n' "${a[$((i+1))]}"
+      return 0
+    fi
+  done
+  return 1
+}
+id_alpha="$(run_and_get_machine_id alpha "$SANDBOX/bwrap.log")"
+id_beta="$(run_and_get_machine_id beta "$SANDBOX/bwrap2.log")"
+id_alpha2="$(run_and_get_machine_id alpha "$SANDBOX/bwrap3.log")"
+# Format: 32 hex chars.
+mid="$(cat "$id_alpha" 2>/dev/null)"
+if [[ "$mid" =~ ^[0-9a-f]{32}$ ]]; then _pass; else _fail "machine-id not 32 hex chars: '$mid'"; fi
+# Distinct across instances, stable within an instance.
+if [ -n "$id_beta" ] && [ "$(cat "$id_beta")" != "$mid" ]; then _pass; else _fail "instances share machine-id"; fi
+assert_eq "$(cat "$id_alpha2")" "$mid" "machine-id stable across runs"
+cleanup_sandbox
+
 t behavior-run-rejects-invalid-instance-name -- true
 for invalid_instance in 'bad/name' '.' '..' '...' '-leading'; do
   new_app_sandbox
