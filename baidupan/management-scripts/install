@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Install (or update) Baidu Net Disk: download the versioned .deb and
+# repackage it into a runnable AppImage. Idempotent via a version marker.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_common.sh
+. "$SCRIPT_DIR/_common.sh"
+mkdir -p "$APP_DIR"
+MARKER="$APP_DIR/.release-tag"
+TARGET="$APP_DIR/baidunetdisk-x86_64.AppImage"
+
+REMOTE_VER="$(latest_release | awk '{print $1}')"
+if [ -f "$TARGET" ] && [ "$(cat "$MARKER" 2>/dev/null || true)" = "$REMOTE_VER" ]; then
+  chmod +x "$TARGET"
+  echo "baidupan is already installed: $TARGET ($REMOTE_VER)"
+  exit 0
+fi
+
+URL="$(deb_url "$REMOTE_VER")"
+deb_tmp="$(mktemp "$APP_DIR/.deb.XXXXXX")"
+trap 'rm -f "$deb_tmp"' EXIT
+echo "[+] Downloading baidunetdisk $REMOTE_VER"
+curl --fail --location --progress-bar --max-time 1800 "$URL" -o "$deb_tmp"
+
+# Repackage: extract the deb and wrap it in an AppDir with AppRun.
+extract="$(mktemp -d "$APP_DIR/.extract.XXXXXX")"
+appdir="$extract/AppDir"
+mkdir -p "$appdir/usr/bin" "$appdir/usr/lib/$APP_NAME"
+dpkg-deb -x "$deb_tmp" "$extract/pkg"
+cp -a "$extract/pkg/opt/"* "$appdir/usr/lib/$APP_NAME/"
+binary="$(find "$appdir/usr/lib/$APP_NAME" -maxdepth 1 -type f -name 'baidunetdisk' -print -quit)"
+[ -n "$binary" ] || { echo "Error: baidunetdisk binary not found in deb" >&2; rm -rf "$extract"; exit 1; }
+ln -sf "../lib/$APP_NAME/$(basename "$binary")" "$appdir/usr/bin/baidunetdisk"
+
+cat > "$appdir/AppRun" <<'EOF'
+#!/bin/sh
+set -eu
+APPDIR="$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)"
+export PATH="$APPDIR/usr/bin:$PATH"
+exec "$APPDIR/usr/lib/baidupan/baidunetdisk" "$@"
+EOF
+chmod +x "$appdir/AppRun"
+cat > "$appdir/baidunetdisk.desktop" <<'EOF'
+[Desktop Entry]
+Name=Baidu Net Disk
+Exec=baidunetdisk %U
+Terminal=false
+Type=Application
+Icon=baidunetdisk
+Categories=Network;
+StartupWMClass=baidunetdisk
+EOF
+for s in 16 32 48 64 128 256; do
+  icon="$(find "$extract/pkg/usr/share/icons" -name "baidunetdisk_${s}*.png" -print -quit 2>/dev/null || true)"
+  if [ -z "$icon" ]; then
+    icon="$(find "$extract/pkg/opt" -name '*.png' -print -quit 2>/dev/null || true)"
+  fi
+  [ -n "$icon" ] && { mkdir -p "$appdir/usr/share/icons/hicolor/${s}x${s}/apps"; cp "$icon" "$appdir/usr/share/icons/hicolor/${s}x${s}/apps/baidunetdisk.png"; }
+done
+
+# Package with appimagetool (downloaded on first use).
+TOOL="$APP_DIR/.appimagetool-x86_64.AppImage"
+if [ ! -x "$TOOL" ]; then
+  curl --fail --location --progress-bar \
+    https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+    -o "$TOOL"
+  chmod +x "$TOOL"
+fi
+rm -f "$TARGET" "$APP_DIR/BaiduNetDisk-x86_64.AppImage"
+if ! "$TOOL" "$appdir"; then
+  "$TOOL" --appimage-extract-and-run "$appdir"
+fi
+tool_output="$extract/AppDir/../BaiduNetDisk-x86_64.AppImage"
+[ -f "$tool_output" ] || tool_output="$APP_DIR/BaiduNetDisk-x86_64.AppImage"
+mv "$tool_output" "$TARGET"
+chmod +x "$TARGET"
+rm -rf "$extract" "$deb_tmp"
+trap - EXIT
+printf '%s\n' "$REMOTE_VER" > "$MARKER"
+echo "Installed baidupan: $TARGET ($REMOTE_VER)"
