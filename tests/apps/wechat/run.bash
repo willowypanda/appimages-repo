@@ -58,4 +58,44 @@ done
 if [ "$found" = 1 ]; then _pass; else _fail "~/Downloads not mounted read-write into sandbox HOME"; fi
 cleanup_sandbox
 
+# --- update script: refresh scripts via manager, fall back to local install ---
+
+setup_update_env() {
+  new_wechat_app
+  U="$APP/management-scripts/update"
+  export MOCK_CURL_LOG="$SANDBOX/curl.log"
+  : > "$MOCK_FIXTURES/appimage-fixture"
+  printf 'dldir1v6.qq.com\tappimage-fixture\n' > "$MOCK_FIXTURES/routes"
+}
+
+install_stub_manager() { # records invocation
+  mkdir -p "$HOME/.local/bin"
+  cat > "$HOME/.local/bin/custom-appimage-manager" <<STUB
+#!/usr/bin/env bash
+echo "MANAGER-INVOKED \$*" >> "$SANDBOX/manager.log"
+# Simulate the manager contract: refresh scripts (touch a marker), then run install.
+echo refreshed > "$APP/management-scripts/.refreshed-by-manager"
+bash "$APP/management-scripts/install" "\$@"
+STUB
+  chmod +x "$HOME/.local/bin/custom-appimage-manager"
+}
+
+t wechat-update-routes-through-manager-when-available -- true
+setup_update_env
+install_stub_manager
+out="$(printf 'old\n' > "$APP/.release-tag"; bash "$U" 2>&1)"; rc=$?
+assert_eq "$rc" "0" "update rc via manager: $out"
+assert_contains "$(cat "$SANDBOX/manager.log")" "app wechat install" "manager invoked with install"
+assert_file_exists "$APP/management-scripts/.refreshed-by-manager"
+cleanup_sandbox
+
+t wechat-update-falls-back-to-local-install-without-manager -- true
+setup_update_env
+rm -f "$HOME/.local/bin/custom-appimage-manager"
+out="$(printf 'old\n' > "$APP/.release-tag"; bash "$U" 2>&1)"; rc=$?
+assert_eq "$rc" "0" "fallback update rc: $out"
+assert_file_exists "$APP/WeChatLinux_x86_64.AppImage"
+if [ -e "$SANDBOX/manager.log" ]; then _fail "manager path used although absent"; else _pass; fi
+cleanup_sandbox
+
 summary

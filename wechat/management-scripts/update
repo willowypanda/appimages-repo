@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
 # Update WeChat to the latest AppImage. Instance data is preserved.
+# Prefer the installed manager: `app APP install` refreshes the management
+# scripts from the repo before running install, keeping this copy current.
+# Fall back to the local install script when the manager is unavailable.
 set -euo pipefail
-exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MANAGER="${HOME}/.local/bin/custom-appimage-manager"
+if [ -x "$MANAGER" ]; then
+  exec "$MANAGER" app wechat install
+fi
+exec "$SCRIPT_DIR/install"
