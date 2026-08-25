@@ -75,7 +75,8 @@ custom-appimage-manager app baidunetdisk run work  # named instance
 
 Sandboxing matches the other apps: bubblewrap with an explicit allowlist,
 per-instance HOME under `~/.local/share/baidunetdisk-appimage/instances/`, host
-`~/Downloads` mounted read-write, and a per-instance fake machine-id.
+`~/Downloads` mounted read-write, and a per-instance fake machine-id. See
+`docs/shared-cache-policy.md` for the shared appimagetool cache behavior.
 
 ## Install and manage WeChat
 
