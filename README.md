@@ -307,6 +307,18 @@ so FUSE is not required.
 
 This isolation is similar in purpose to Flatpak, but is not identical. AdsPower's internal Electron sandbox remains disabled for compatibility.
 
+## End-to-end install/uninstall audit
+
+For verifying that `install` and `uninstall` only touch the documented paths,
+there is a manual end-to-end audit at `tests/integration/run-audit.sh`.
+It bind-mounts a shadow tree over `/home/$USER`, `/root`, `/etc`, `/tmp`,
+`/var/cache`, runs install + uninstall under `fakeroot`, and diffs the
+result against the documented whitelist. See `tests/integration/README.md`.
+
+This script is deliberately NOT wired into CI (it needs root, network, and
+minutes of real downloads). If it ever gets added to a CI workflow by
+mistake, it will fail fast with a clear error rather than auto-skipping.
+
 ## GitHub Actions
 
 `.github/workflows/build-adspower-appimage.yml`:
