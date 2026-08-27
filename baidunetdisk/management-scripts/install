@@ -28,7 +28,10 @@ appdir="$extract/AppDir"
 mkdir -p "$appdir/usr/bin" "$appdir/usr/lib/$APP_NAME"
 dpkg-deb -x "$deb_tmp" "$extract/pkg"
 cp -a "$extract/pkg/opt/"* "$appdir/usr/lib/$APP_NAME/"
-binary="$(find "$appdir/usr/lib/$APP_NAME" -maxdepth 1 -type f -name 'baidunetdisk' -print -quit)"
+# The upstream deb contains /opt/baidunetdisk/baidunetdisk. The copy above
+# preserves that directory, so search below the app root rather than only at
+# its first level.
+binary="$(find "$appdir/usr/lib/$APP_NAME" -type f -name 'baidunetdisk' -print -quit)"
 [ -n "$binary" ] || { echo "Error: baidunetdisk binary not found in deb" >&2; rm -rf "$extract"; exit 1; }
 ln -sf "../lib/$APP_NAME/$(basename "$binary")" "$appdir/usr/bin/baidunetdisk"
 
@@ -37,7 +40,7 @@ cat > "$appdir/AppRun" <<'EOF'
 set -eu
 APPDIR="$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)"
 export PATH="$APPDIR/usr/bin:$PATH"
-exec "$APPDIR/usr/lib/baidunetdisk/baidunetdisk" "$@"
+exec "$APPDIR/usr/lib/baidunetdisk/baidunetdisk/baidunetdisk" "$@"
 EOF
 chmod +x "$appdir/AppRun"
 cat > "$appdir/baidunetdisk.desktop" <<'EOF'

@@ -5,9 +5,12 @@ LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../lib" && pwd)"
 . "$LIB/lib.sh"
 
 run_contract_suite() {
-  APP_CONFIG="$REPO_DIR/tests/apps/$1/config.sh" \
+  APP_CONFIG="$REPO_DIR/tests/apps/baidunetdisk/config.sh" \
     bash "$REPO_DIR/tests/contract/test-contract.bash"
 }
+
+# The upstream package keeps the executable at /opt/baidunetdisk/baidunetdisk;
+# the installer must find nested binaries, not only top-level files.
 
 t baidunetdisk-passes-contract-suite -- true
 out="$(run_contract_suite baidunetdisk 2>&1)"; rc=$?

@@ -14,9 +14,10 @@
     `tests/apps/<name>/` — fully offline, no network, no root, CI-friendly.
     Run via `tests/run-tests.sh`.
   - `tests/integration/run-audit.sh` — manual end-to-end install/uninstall
-    audit under `fakeroot` + bind mounts. **Not** part of CI. See
-    `tests/integration/README.md` and the README "End-to-end install/uninstall
-    audit" section.
+    audit under `fakeroot` + private mount namespaces. It covers all four
+    apps: `adspower`, `wechat`, `baidunetdisk`, and `tencentqq`. **Not** part
+    of CI. See `tests/integration/README.md` and the README "End-to-end
+    install/uninstall audit" section.
 
 ## Things to know before changing scripts
 

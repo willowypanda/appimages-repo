@@ -27,7 +27,7 @@ Supported applications:
 
 - `adspower`: real `.deb` download/repack/install/uninstall path;
 - `wechat`: official rolling AppImage download path;
-- `baidunetdisk`: versioned `.deb` download and local `.deb` to AppImage repack path;
+- `baidunetdisk`: versioned `.deb` download and local `.deb` to AppImage repack path. The upstream executable is nested at `/opt/baidunetdisk/baidunetdisk`; the audit covers this nested layout.
 - `tencentqq`: official AppImage path, including `pcConfig.json` and signed-URL exchange.
 
 What the script does:
