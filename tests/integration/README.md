@@ -5,8 +5,11 @@ For verifying that `install` and `uninstall` only touch the documented paths
 there is a manual end-to-end audit:
 
 ```bash
-sudo bash tests/integration/run-audit.sh                # both adspower and wechat
-sudo bash tests/integration/run-audit.sh adspower       # one app
+sudo bash tests/integration/run-audit.sh                         # all four apps
+sudo bash tests/integration/run-audit.sh adspower                # one app
+sudo bash tests/integration/run-audit.sh baidunetdisk             # one app
+sudo bash tests/integration/run-audit.sh tencentqq                # one app
+sudo bash tests/integration/run-audit.sh wechat                  # one app
 ```
 
 Requirements (all must be present on the running system):
@@ -19,6 +22,13 @@ Requirements (all must be present on the running system):
   `sudo apt install fakeroot` before running the audit.
 - network access to `github.com` and `api.github.com` (real adspower deb is
   ~325MB; appimagetool is downloaded automatically)
+
+Supported applications:
+
+- `adspower`: real `.deb` download/repack/install/uninstall path;
+- `wechat`: official rolling AppImage download path;
+- `baidunetdisk`: versioned `.deb` download and local `.deb` to AppImage repack path;
+- `tencentqq`: official AppImage path, including `pcConfig.json` and signed-URL exchange.
 
 What the script does:
 

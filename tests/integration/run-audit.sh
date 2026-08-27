@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Manual end-to-end install/uninstall audit.
 #
-# Run as: sudo bash tests/integration/run-audit.sh [adspower|wechat]
+# Run as: sudo bash tests/integration/run-audit.sh [adspower|wechat|baidunetdisk|tencentqq]
 # This is intentionally NOT part of CI. It downloads real upstream artifacts.
 #
 # The child process enters a private mount namespace before mounting any
@@ -38,9 +38,12 @@ done
 curl --silent --show-error --fail --head --max-time 15 https://github.com >/dev/null \
   || fail "network check failed for github.com"
 
-APPS=(adspower wechat)
+APPS=(adspower wechat baidunetdisk tencentqq)
 [ -z "$APP_FILTER" ] || APPS=("$APP_FILTER")
-case "$APP_FILTER" in ''|adspower|wechat) ;; *) fail "unknown app: $APP_FILTER (supported: adspower, wechat)" ;; esac
+case "$APP_FILTER" in
+  ''|adspower|wechat|baidunetdisk|tencentqq) ;;
+  *) fail "unknown app: $APP_FILTER (supported: adspower, wechat, baidunetdisk, tencentqq)" ;;
+esac
 
 cleanup() {
   # Child mount namespaces disappear when their command exits. This removes
