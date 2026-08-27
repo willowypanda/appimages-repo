@@ -11,9 +11,12 @@ sudo bash tests/integration/run-audit.sh adspower       # one app
 
 Requirements (all must be present on the running system):
 
-- `bwrap`, `dpkg-deb`, `fakeroot`, `curl`, `python3`, `mount`, `umount`
-- root (the script bind-mounts shadow dirs over `/home/$USER`, `/root`, `/etc`,
-  `/tmp`, `/var/cache`; everything install writes goes into the shadow)
+- `bwrap`, `dpkg-deb`, `fakeroot`, `curl`, `python3`, `mount`, `umount`,
+  `unshare`
+- root (the script enters a private mount namespace, then bind-mounts shadow
+  dirs over the target user's home, `/tmp`, and `/var/cache`; the host mounts
+  are never replaced globally) — if `fakeroot` is missing, install it with
+  `sudo apt install fakeroot` before running the audit.
 - network access to `github.com` and `api.github.com` (real adspower deb is
   ~325MB; appimagetool is downloaded automatically)
 
