@@ -11,6 +11,8 @@ run_contract_suite() {
 
 # The upstream package keeps the executable and SVG at /opt/baidunetdisk;
 # the installer must find nested binaries and put the icon at AppDir root.
+# The real appimagetool writes output in the caller's cwd, so production
+# install must explicitly run it from APP_DIR before discovering the output.
 
 t baidunetdisk-passes-contract-suite -- true
 out="$(run_contract_suite baidunetdisk 2>&1)"; rc=$?

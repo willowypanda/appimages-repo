@@ -78,7 +78,13 @@ ensure_appimagetool "$TOOL"
 # ("Baidu Net Disk" -> "Baidu_Net_Disk-x86_64.AppImage"), so do not
 # hard-code a guessed capitalization. Remove stale generated outputs first.
 find "$APP_DIR" -maxdepth 1 -type f -name '*-x86_64.AppImage' -delete
-run_appimagetool "$TOOL" "$appdir"
+# appimagetool writes its output to the current working directory. Run it
+# from APP_DIR so the output location is deterministic even when the caller
+# is inside a private mount namespace or invokes install from another cwd.
+(
+  cd "$APP_DIR"
+  run_appimagetool "$TOOL" "$appdir"
+)
 tool_output="$(find "$APP_DIR" -maxdepth 1 -type f -name '*-x86_64.AppImage' -print -quit 2>/dev/null || true)"
 [ -n "$tool_output" ] || {
   echo "Error: appimagetool did not create an x86_64 AppImage in $APP_DIR" >&2
