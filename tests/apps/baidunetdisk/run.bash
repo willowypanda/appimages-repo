@@ -45,6 +45,17 @@ assert_eq "$rc" "0" "latest_release rc: $out"
 assert_contains "$out" "4.17.10" "probes upward and finds newest existing"
 cleanup_sandbox
 
+t baidunetdisk-preserves-local-appimagetool-during-output-cleanup -- true
+new_baidunetdisk_app
+TOOL="$APP/.appimagetool-x86_64.AppImage"
+: > "$TOOL"
+chmod +x "$TOOL"
+# The production cleanup glob must not delete the hidden appimagetool.
+find "$APP" -maxdepth 1 -type f -name '*-x86_64.AppImage' ! -name '.appimagetool-*' -delete
+assert_file_exists "$TOOL"
+_pass
+cleanup_sandbox
+
 t baidunetdisk-check-compares-versions -- true
 new_baidunetdisk_app
 C="$APP/management-scripts/check"

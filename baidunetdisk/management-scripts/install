@@ -77,7 +77,10 @@ ensure_appimagetool "$TOOL"
 # appimagetool derives the output filename from the desktop Name field
 # ("Baidu Net Disk" -> "Baidu_Net_Disk-x86_64.AppImage"), so do not
 # hard-code a guessed capitalization. Remove stale generated outputs first.
-find "$APP_DIR" -maxdepth 1 -type f -name '*-x86_64.AppImage' -delete
+find "$APP_DIR" -maxdepth 1 -type f \
+  -name '*-x86_64.AppImage' ! -name '.appimagetool-*' -delete
+# Keep the shared provisioning tool; only generated application images are
+# stale outputs eligible for removal.
 # appimagetool writes its output to the current working directory. Run it
 # from APP_DIR so the output location is deterministic even when the caller
 # is inside a private mount namespace or invokes install from another cwd.
