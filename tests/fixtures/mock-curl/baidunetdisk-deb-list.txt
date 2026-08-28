@@ -1,0 +1,3 @@
+./opt/baidunetdisk/baidunetdisk
+./opt/baidunetdisk/baidunetdisk.svg
+./usr/share/icons/hicolor/scalable/apps/baidunetdisk.svg

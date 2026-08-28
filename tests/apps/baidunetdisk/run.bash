@@ -9,8 +9,8 @@ run_contract_suite() {
     bash "$REPO_DIR/tests/contract/test-contract.bash"
 }
 
-# The upstream package keeps the executable at /opt/baidunetdisk/baidunetdisk;
-# the installer must find nested binaries, not only top-level files.
+# The upstream package keeps the executable and SVG at /opt/baidunetdisk;
+# the installer must find nested binaries and put the icon at AppDir root.
 
 t baidunetdisk-passes-contract-suite -- true
 out="$(run_contract_suite baidunetdisk 2>&1)"; rc=$?

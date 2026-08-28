@@ -53,13 +53,21 @@ Icon=baidunetdisk
 Categories=Network;
 StartupWMClass=baidunetdisk
 EOF
-for s in 16 32 48 64 128 256; do
-  icon="$(find "$extract/pkg/usr/share/icons" -name "baidunetdisk_${s}*.png" -print -quit 2>/dev/null || true)"
-  if [ -z "$icon" ]; then
-    icon="$(find "$extract/pkg/opt" -name '*.png' -print -quit 2>/dev/null || true)"
-  fi
-  [ -n "$icon" ] && { mkdir -p "$appdir/usr/share/icons/hicolor/${s}x${s}/apps"; cp "$icon" "$appdir/usr/share/icons/hicolor/${s}x${s}/apps/baidunetdisk.png"; }
-done
+# appimagetool resolves Icon=baidunetdisk by looking in the AppDir root.
+# The upstream package supplies an SVG at both /opt/baidunetdisk and
+# /usr/share/icons/hicolor/scalable/apps, so install a root-level icon and
+# retain a hicolor copy for desktop integration.
+icon="$(find "$extract/pkg/usr/share/icons" -type f -name 'baidunetdisk.svg' -print -quit 2>/dev/null || true)"
+[ -n "$icon" ] || icon="$(find "$extract/pkg/opt" -type f -name 'baidunetdisk.svg' -print -quit 2>/dev/null || true)"
+if [ -n "$icon" ]; then
+  cp "$icon" "$appdir/baidunetdisk.svg"
+  mkdir -p "$appdir/usr/share/icons/hicolor/scalable/apps"
+  cp "$icon" "$appdir/usr/share/icons/hicolor/scalable/apps/baidunetdisk.svg"
+else
+  echo "Error: baidunetdisk icon not found in deb" >&2
+  rm -rf "$extract"
+  exit 1
+fi
 
 # Package with appimagetool (shared, auto-refreshed via ensure-appimagetool).
 TOOL="$APP_DIR/.appimagetool-x86_64.AppImage"
