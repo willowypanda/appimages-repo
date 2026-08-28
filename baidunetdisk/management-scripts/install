@@ -74,10 +74,17 @@ TOOL="$APP_DIR/.appimagetool-x86_64.AppImage"
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/_ensure-appimagetool.sh"
 ensure_appimagetool "$TOOL"
-rm -f "$TARGET" "$APP_DIR/BaiduNetDisk-x86_64.AppImage"
+# appimagetool derives the output filename from the desktop Name field
+# ("Baidu Net Disk" -> "Baidu_Net_Disk-x86_64.AppImage"), so do not
+# hard-code a guessed capitalization. Remove stale generated outputs first.
+find "$APP_DIR" -maxdepth 1 -type f -name '*-x86_64.AppImage' -delete
 run_appimagetool "$TOOL" "$appdir"
-tool_output="$extract/AppDir/../BaiduNetDisk-x86_64.AppImage"
-[ -f "$tool_output" ] || tool_output="$APP_DIR/BaiduNetDisk-x86_64.AppImage"
+tool_output="$(find "$APP_DIR" -maxdepth 1 -type f -name '*-x86_64.AppImage' -print -quit 2>/dev/null || true)"
+[ -n "$tool_output" ] || {
+  echo "Error: appimagetool did not create an x86_64 AppImage in $APP_DIR" >&2
+  rm -rf "$extract"
+  exit 1
+}
 mv "$tool_output" "$TARGET"
 chmod +x "$TARGET"
 rm -rf "$extract" "$deb_tmp"
